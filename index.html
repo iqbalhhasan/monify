@@ -98,6 +98,7 @@ function range(){const n=new Date();n.setHours(0,0,0,0);let a,b,l;
  return{a:ds(a),b:ds(b),l}}
 const bal=id=>{const a=S.accs.find(x=>x.id===id);let v=a.open||0;S.tx.forEach(t=>{if(t.type==="i"&&t.acc===id)v+=t.amt;if(t.type==="e"&&t.acc===id)v-=t.amt;if(t.type==="t"){if(t.acc===id)v-=t.amt;if(t.to===id)v+=t.amt}});return v};
 const an=id=>(S.accs.find(x=>x.id===id)||{name:"?"}).name;
+const sgn=t=>t.type==='t'?(V.acc==='all'?0:t.to===V.acc?1:-1):t.type==='i'?1:-1;
 const periodTx=()=>{const r=range();return S.tx.filter(t=>t.date>=r.a&&t.date<=r.b&&(V.acc==="all"||t.acc===V.acc||(t.type==="t"&&t.to===V.acc)))};
 function render(){
  const r=range();$("lbl").textContent=r.l;$("pv").style.visibility=$("nx").style.visibility=V.per==="all"?"hidden":"visible";
@@ -106,7 +107,8 @@ function render(){
  const P=periodTx(),own=t=>V.acc==="all"||t.acc===V.acc;
  const tE=P.filter(t=>t.type==="e"&&own(t)).reduce((s,t)=>s+t.amt,0),tI=P.filter(t=>t.type==="i"&&own(t)).reduce((s,t)=>s+t.amt,0);
  const by={};P.filter(t=>t.type==="e"&&own(t)).forEach(t=>by[t.cat]=(by[t.cat]||0)+t.amt);
- $("mid").innerHTML=`<small>INCOME</small><b class="inc">+${money(tI)}</b><small>EXPENSE</small><b class="exp" style="margin:0">−${money(tE)}</b><span class="tl">Tap for log ⌃</span>`;
+ const xI=V.acc==="all"?0:P.filter(t=>t.type==="t"&&t.to===V.acc).reduce((s,t)=>s+t.amt,0),xE=V.acc==="all"?0:P.filter(t=>t.type==="t"&&t.acc===V.acc).reduce((s,t)=>s+t.amt,0);
+ $("mid").innerHTML=`<small>INCOME</small><b class="inc">+${money(tI+xI)}</b><small>EXPENSE</small><b class="exp" style="margin:0">−${money(tE+xE)}</b><span class="tl">Tap for log ⌃</span>`;
  const C=2*Math.PI*78;let off=0,svg=`<circle cx="100" cy="100" r="78" fill="none" stroke="#1a2845" stroke-width="22"/>`;
  CE.forEach(c=>{const v=by[c[0]]||0;if(!v)return;const len=v/tE*C;svg+=`<circle cx="100" cy="100" r="78" fill="none" stroke="${c[2]}" stroke-width="22" stroke-dasharray="${Math.max(len-2,.5)} ${C}" stroke-dashoffset="${-off}"/>`;off+=len});
  $("dn").innerHTML=svg;
@@ -140,7 +142,7 @@ function log(){
  const P=periodTx().sort((a,b)=>b.date.localeCompare(a.date)||b.id-a.id),days={};P.forEach(t=>(days[t.date]=days[t.date]||[]).push(t));
  open(`<h2>Records · ${esc(range().l)}</h2>`+(P.length?Object.keys(days).map(d=>`<div class="dh">${pd(d).toLocaleDateString("en",{weekday:"long",day:"numeric",month:"short"})}</div>`+days[d].map(t=>{
   const c=(t.type==="e"?CE:CI).find(x=>x[0]===t.cat);
-  return`<div class="row" data-t="${t.id}"><div class="ic">${t.type==="t"?"⇄":c?c[1]:"📦"}</div><div class="m"><div>${esc(t.type==="t"?"Transfer":t.cat)}${t.note?" · "+esc(t.note):""}</div><small>${esc(t.type==="t"?an(t.acc)+" → "+an(t.to):an(t.acc))}</small></div><b class="${t.type==="e"?"exp":t.type==="i"?"inc":""}">${t.type==="e"?"−":t.type==="i"?"+":""}${money(t.amt)}</b></div>`}).join("")).join(""):`<div class="empty">No records for this period.</div>`));
+  return`<div class="row" data-t="${t.id}"><div class="ic">${t.type==="t"?"⇄":c?c[1]:"📦"}</div><div class="m"><div>${esc(t.type==="t"?"Transfer":t.cat)}${t.note?" · "+esc(t.note):""}</div><small>${esc(t.type==="t"?an(t.acc)+" → "+an(t.to):an(t.acc))}</small></div><b class="${sgn(t)>0?"inc":sgn(t)<0?"exp":""}">${sgn(t)>0?"+":sgn(t)<0?"−":""}${money(t.amt)}</b></div>`}).join("")).join(""):`<div class="empty">No records for this period.</div>`));
 }
 function picker(){
  open(`<h2>Account</h2><button class="pk ${V.acc==="all"?"on":""}" data-a="all"><span>🧾 All accounts</span><b>${money(S.accs.reduce((s,a)=>s+bal(a.id),0))}</b></button>`+S.accs.map(a=>`<button class="pk ${V.acc===a.id?"on":""}" data-a="${a.id}"><span>${esc(a.emoji||"")} ${esc(a.name)}</span><b>${money(bal(a.id))}</b></button>`).join(""));
