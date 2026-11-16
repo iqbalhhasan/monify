@@ -22,7 +22,8 @@ header{display:flex;align-items:center;gap:10px}
 .per{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:6px;color:var(--mut);font-size:13px;letter-spacing:.8px;text-transform:uppercase;font-weight:600}
 .per button{border:0;background:none;color:var(--mut);font-size:22px;width:34px;height:28px;line-height:1}
 .per span{min-width:150px;text-align:center}
-.stage{position:relative;width:min(94vw,400px,50vh);aspect-ratio:1;margin:auto}
+.sb{flex:1;min-height:0;container-type:size;display:flex;align-items:center;justify-content:center;margin:4px 0 8px}
+.stage{position:relative;width:min(94vw,400px,50vh);width:min(100cqw,100cqh,480px);aspect-ratio:1;margin:0}
 #dn{position:absolute;left:18%;top:18%;width:64%;height:64%;transform:rotate(-90deg)}
 .mid{position:absolute;inset:30%;border-radius:50%;background:#14213a;box-shadow:inset 0 0 0 1px var(--line);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;border:0;color:var(--tx)}
 .mid small{font-size:10px;letter-spacing:1.2px;color:var(--mut);font-weight:700}
@@ -73,8 +74,8 @@ input[type=date]::-webkit-calendar-picker-indicator{opacity:.6}
   <div class="ti"><b>Monify</b><button id="ac"></button></div>
   <div class="seg" id="seg"></div><button class="sq" id="bl" aria-label="Records">☰</button></header>
  <div class="per"><button id="pv">‹</button><span id="lbl"></span><button id="nx">›</button></div>
- <div class="stage" id="st"><svg viewBox="0 0 200 200" id="dn"></svg><div id="ics"></div>
-  <button class="mid" id="mid"></button></div>
+ <div class="sb"><div class="stage" id="st"><svg viewBox="0 0 200 200" id="dn"></svg><div id="ics"></div>
+  <button class="mid" id="mid"></button></div></div>
  <div class="bal"><span>BALANCE</span><b id="bv"></b></div>
  <div class="foot"><button class="fb e" id="bE"><i>−</i>EXPENSE</button>
   <div><div class="hint">Tap any category icon<br>or use − / +</div><button class="tr" id="bT">⇄ Transfer</button></div>
