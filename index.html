@@ -1,0 +1,1311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  
+  <!-- iOS Web App Meta Tags -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Monefy Web" />
+  <title>Monefy — Personal Finance Tracker</title>
+
+  <!-- Tailwind CSS & Lucide Icons -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Firebase Compat SDKs (Auth + Firestore) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+    :root {
+      --safe-top: env(safe-area-inset-top, 20px);
+      --safe-bottom: env(safe-area-inset-bottom, 20px);
+    }
+
+    * {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    body {
+      background-color: #0f172a;
+      color: #f8fafc;
+      overflow: hidden;
+      height: 100dvh;
+      width: 100vw;
+      display: flex;
+      justify-content: center;
+    }
+
+    #app-shell {
+      width: 100%;
+      max-width: 430px;
+      height: 100dvh;
+      padding-top: var(--safe-top);
+      padding-bottom: var(--safe-bottom);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+      background: radial-gradient(circle at 50% 35%, #1e293b 0%, #0f172a 75%);
+      overflow: hidden;
+    }
+
+    .orbit-node {
+      transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s ease;
+    }
+    .orbit-node:active {
+      transform: translate(-50%, -50%) scale(0.88) !important;
+    }
+
+    .donut-segment {
+      transition: stroke-dasharray 0.5s cubic-bezier(0.4, 0, 0.2, 1), stroke-dashoffset 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .sheet-transition {
+      transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+    }
+
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="app-shell">
+    
+    <!-- TOP BAR: Branding, Period Filter, Google Sync & History -->
+    <header class="px-4 pt-2 pb-1 flex items-center justify-between z-10 gap-1.5">
+      <div class="flex items-center space-x-2 min-w-0">
+        <div class="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-extrabold text-base shadow-inner shrink-0">
+          M
+        </div>
+        <div class="min-w-0">
+          <h1 class="text-sm font-bold tracking-tight text-white leading-none">Monefy</h1>
+          <button id="currency-btn" onclick="cycleCurrency()" class="text-[10px] font-semibold text-emerald-400 hover:text-emerald-300 flex items-center gap-0.5 mt-0.5">
+            <span id="currency-label">৳ (BDT)</span>
+            <i data-lucide="chevron-down" class="w-2.5 h-2.5"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Time Period Selector -->
+      <div class="flex bg-slate-800/90 p-0.5 rounded-xl border border-slate-700/60 text-[11px] font-semibold">
+        <button onclick="setFilter('day')" id="filter-day" class="px-2 py-1 rounded-lg transition-all text-slate-400">Day</button>
+        <button onclick="setFilter('month')" id="filter-month" class="px-2 py-1 rounded-lg transition-all bg-slate-700 text-white shadow">Month</button>
+        <button onclick="setFilter('all')" id="filter-all" class="px-2 py-1 rounded-lg transition-all text-slate-400">All</button>
+      </div>
+
+      <!-- Right Actions: Google Account Sync + History Drawer -->
+      <div class="flex items-center gap-1.5 shrink-0">
+        <button id="google-auth-btn" onclick="handleGoogleAuthClick()" title="Google Sync" class="h-8 px-2.5 rounded-xl bg-slate-800/90 border border-slate-700/60 flex items-center gap-1.5 text-[11px] font-bold text-slate-200 active:scale-90 transition">
+          <span id="sync-dot" class="w-2 h-2 rounded-full bg-slate-500"></span>
+          <span id="auth-btn-label">Sign in</span>
+        </button>
+
+        <button onclick="toggleHistoryDrawer()" class="w-8 h-8 rounded-xl bg-slate-800/80 border border-slate-700/60 flex items-center justify-center text-slate-300 active:scale-90 transition">
+          <i data-lucide="list-ordered" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- ACCOUNT FILTER PILLS & PERIOD SUB-HEADER -->
+    <div class="px-4 pt-1 flex flex-col items-center gap-1.5 z-10">
+      <!-- Account Switcher Bar (All | Cash | bKash | Bank) -->
+      <div class="flex items-center gap-1.5 overflow-x-auto max-w-full no-scrollbar">
+        <button onclick="setAccountFilter('all')" id="acc-filter-all" class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 transition">
+          All Accounts
+        </button>
+        <button onclick="setAccountFilter('cash')" id="acc-filter-cash" class="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-slate-800/80 text-slate-400 border border-slate-700/60 transition flex items-center gap-1">
+          <i data-lucide="banknote" class="w-3 h-3 text-emerald-400"></i> Cash
+        </button>
+        <button onclick="setAccountFilter('bkash')" id="acc-filter-bkash" class="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-slate-800/80 text-slate-400 border border-slate-700/60 transition flex items-center gap-1">
+          <i data-lucide="smartphone" class="w-3 h-3 text-pink-400"></i> bKash
+        </button>
+        <button onclick="setAccountFilter('bank')" id="acc-filter-bank" class="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-slate-800/80 text-slate-400 border border-slate-700/60 transition flex items-center gap-1">
+          <i data-lucide="landmark" class="w-3 h-3 text-sky-400"></i> Bank
+        </button>
+      </div>
+
+      <p id="current-period-label" class="text-[11px] font-medium text-slate-400 tracking-wide uppercase"></p>
+    </div>
+
+    <!-- CENTER STAGE: Monefy Donut Chart & Orbiting Category Icons -->
+    <main class="relative flex-1 flex items-center justify-center my-0.5 select-none">
+      <div id="wheel-container" class="relative w-[330px] h-[330px] flex items-center justify-center">
+        
+        <!-- SVG Donut Chart -->
+        <svg id="donut-svg" class="w-[204px] h-[204px] -rotate-90 transform" viewBox="0 0 120 120">
+          <circle cx="60" cy="60" r="46" fill="transparent" stroke="#1e293b" stroke-width="14" />
+          <g id="donut-segments"></g>
+        </svg>
+
+        <!-- Center Balance Readout -->
+        <div onclick="toggleHistoryDrawer()" class="absolute inset-0 m-auto w-[138px] h-[138px] rounded-full bg-slate-900/90 border border-slate-800/80 shadow-2xl flex flex-col items-center justify-center cursor-pointer active:scale-95 transition-transform">
+          <span class="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Income</span>
+          <span id="center-income" class="text-xs font-bold text-emerald-400 mt-0.5">+৳0</span>
+          
+          <div class="w-12 h-[1px] bg-slate-800 my-1.5"></div>
+          
+          <span class="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Expense</span>
+          <span id="center-expense" class="text-sm font-extrabold text-rose-400 mt-0.5">-৳0</span>
+          
+          <span class="text-[9px] text-slate-500 mt-1 flex items-center gap-0.5">
+            Tap for log <i data-lucide="chevron-up" class="w-2.5 h-2.5"></i>
+          </span>
+        </div>
+
+        <!-- Orbiting Category Buttons Injected via JS -->
+        <div id="orbit-container" class="absolute inset-0 pointer-events-none"></div>
+      </div>
+    </main>
+
+    <!-- BOTTOM ACTION AREA: Balance Pill & Minus / Transfer / Plus Buttons -->
+    <footer class="px-6 pb-3 pt-1 flex flex-col items-center gap-3 z-10">
+      
+      <!-- Central Net Balance Pill -->
+      <button onclick="toggleHistoryDrawer()" class="w-full max-w-[270px] py-2 px-5 rounded-full font-extrabold text-sm tracking-wide shadow-lg flex items-center justify-between transition-all active:scale-95" id="balance-pill">
+        <span id="balance-pill-label" class="text-xs font-semibold uppercase opacity-85">Balance</span>
+        <span id="net-balance-text" class="text-base font-extrabold">৳0</span>
+      </button>
+
+      <!-- Giant Minus (Expense), Inter-Transfer (⇄), & Plus (Income) Buttons -->
+      <div class="w-full flex items-center justify-between px-3 pb-1">
+        <!-- Expense Button (-) -->
+        <button onclick="openCalculator('expense', null)" class="group flex flex-col items-center gap-1 focus:outline-none">
+          <div class="w-15 h-15 w-[60px] h-[60px] rounded-full bg-gradient-to-tr from-rose-600 to-rose-500 shadow-lg shadow-rose-600/30 border-2 border-rose-400/40 flex items-center justify-center text-white active:scale-90 transition-transform">
+            <i data-lucide="minus" class="w-7 h-7 stroke-[3]"></i>
+          </div>
+          <span class="text-[10px] font-bold text-rose-400 tracking-wide uppercase">Expense</span>
+        </button>
+
+        <!-- Inter-Account Transfer Button (⇄) -->
+        <button onclick="openCalculator('transfer', null)" class="group flex flex-col items-center gap-1 focus:outline-none">
+          <div class="w-12 h-12 rounded-full bg-gradient-to-tr from-indigo-600 to-sky-500 shadow-lg shadow-sky-600/25 border-2 border-sky-400/40 flex items-center justify-center text-white active:scale-90 transition-transform">
+            <i data-lucide="arrow-left-right" class="w-5 h-5 stroke-[2.5]"></i>
+          </div>
+          <span class="text-[10px] font-bold text-sky-400 tracking-wide uppercase">Transfer</span>
+        </button>
+
+        <!-- Income Button (+) -->
+        <button onclick="openCalculator('income', null)" class="group flex flex-col items-center gap-1 focus:outline-none">
+          <div class="w-[60px] h-[60px] rounded-full bg-gradient-to-tr from-emerald-600 to-emerald-500 shadow-lg shadow-emerald-600/30 border-2 border-emerald-400/40 flex items-center justify-center text-white active:scale-90 transition-transform">
+            <i data-lucide="plus" class="w-7 h-7 stroke-[3]"></i>
+          </div>
+          <span class="text-[10px] font-bold text-emerald-400 tracking-wide uppercase">Income</span>
+        </button>
+      </div>
+    </footer>
+
+    <!-- ==========================================
+         SLIDE-UP TRANSACTION HISTORY & ACCOUNT BALANCES DRAWER
+         ========================================== -->
+    <div id="history-backdrop" onclick="toggleHistoryDrawer()" class="fixed inset-0 bg-black/60 backdrop-blur-xs z-30 hidden opacity-0 transition-opacity duration-300"></div>
+    
+    <section id="history-drawer" class="fixed bottom-0 left-0 right-0 max-w-[430px] mx-auto h-[82dvh] bg-slate-900 border-t border-slate-800 rounded-t-3xl z-40 translate-y-full sheet-transition flex flex-col shadow-2xl" style="padding-bottom: var(--safe-bottom);">
+      <!-- Drag Handle -->
+      <div onclick="toggleHistoryDrawer()" class="w-full pt-3 pb-2 flex justify-center cursor-pointer">
+        <div class="w-12 h-1.5 rounded-full bg-slate-700"></div>
+      </div>
+
+      <!-- Live Account Balances Summary Strip -->
+      <div class="px-5 pb-3 grid grid-cols-3 gap-2 border-b border-slate-800/80">
+        <div class="p-2.5 rounded-2xl bg-slate-800/70 border border-slate-700/50">
+          <div class="flex items-center gap-1 text-[11px] font-semibold text-emerald-400">
+            <i data-lucide="banknote" class="w-3.5 h-3.5"></i> Cash
+          </div>
+          <p id="acc-bal-cash" class="text-xs font-extrabold text-white mt-1 truncate">৳0</p>
+        </div>
+        <div class="p-2.5 rounded-2xl bg-slate-800/70 border border-slate-700/50">
+          <div class="flex items-center gap-1 text-[11px] font-semibold text-pink-400">
+            <i data-lucide="smartphone" class="w-3.5 h-3.5"></i> bKash
+          </div>
+          <p id="acc-bal-bkash" class="text-xs font-extrabold text-white mt-1 truncate">৳0</p>
+        </div>
+        <div class="p-2.5 rounded-2xl bg-slate-800/70 border border-slate-700/50">
+          <div class="flex items-center gap-1 text-[11px] font-semibold text-sky-400">
+            <i data-lucide="landmark" class="w-3.5 h-3.5"></i> Bank
+          </div>
+          <p id="acc-bal-bank" class="text-xs font-extrabold text-white mt-1 truncate">৳0</p>
+        </div>
+      </div>
+
+      <div class="px-6 py-2.5 flex items-center justify-between border-b border-slate-800">
+        <div>
+          <h2 class="text-sm font-bold text-white">Transactions & Transfers</h2>
+          <p id="sync-status-subtext" class="text-[11px] text-slate-400">Stored locally on device</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="exportCSV()" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 flex items-center gap-1 active:scale-95 transition">
+            <i data-lucide="download" class="w-3.5 h-3.5"></i> CSV
+          </button>
+          <button onclick="clearAllData()" class="px-2.5 py-1.5 rounded-lg bg-rose-950/60 hover:bg-rose-900/60 text-xs font-semibold text-rose-400 flex items-center gap-1 active:scale-95 transition">
+            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Reset
+          </button>
+        </div>
+      </div>
+
+      <!-- Transactions Scroll List -->
+      <div id="transactions-list" class="flex-1 overflow-y-auto px-5 py-3 space-y-2.5 no-scrollbar"></div>
+    </section>
+
+    <!-- ==========================================
+         GOOGLE ACCOUNT PROFILE / SYNC MODAL
+         ========================================== -->
+    <div id="auth-modal" class="fixed inset-0 bg-black/70 backdrop-blur-xs z-50 hidden items-center justify-center p-5">
+      <div class="w-full max-w-[360px] bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-2xl">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-base font-extrabold text-white">Google Cloud Sync</h3>
+          <button onclick="closeAuthModal()" class="w-8 h-8 rounded-xl bg-slate-800 flex items-center justify-center text-slate-400">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
+        </div>
+
+        <div id="auth-signed-out-view">
+          <p class="text-xs text-slate-400 leading-relaxed mb-4">
+            Sign in with your Google account to back up and automatically sync your Cash, bKash, and Bank transactions across your iPhone and other devices.
+          </p>
+          <button onclick="signInWithGoogle()" class="w-full py-3 px-4 rounded-2xl bg-white hover:bg-slate-100 text-slate-900 font-bold text-xs flex items-center justify-center gap-2.5 shadow-lg active:scale-95 transition">
+            <svg class="w-4 h-4" viewBox="0 0 24 24">
+              <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17Z"/>
+              <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.11-6.72-4.96H1.29v3.14C3.26 21.3 7.31 24 12 24Z"/>
+              <path fill="#FBBC05" d="M5.28 14.24c-.24-.72-.38-1.49-.38-2.24s.14-1.52.38-2.24V6.62H1.29C.47 8.24 0 10.06 0 12s.47 3.76 1.29 5.38l3.99-3.14Z"/>
+              <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.62l3.99 3.14c.95-2.85 3.6-4.96 6.72-4.96Z"/>
+            </svg>
+            Continue with Google
+          </button>
+          <p id="firebase-config-hint" class="text-[10px] text-amber-400/90 mt-3 hidden">
+            Note: Add your Firebase project keys in <code>FIREBASE_CONFIG</code> inside the script to activate live Google Sign-In.
+          </p>
+        </div>
+
+        <div id="auth-signed-in-view" class="hidden">
+          <div class="flex items-center gap-3 p-3 rounded-2xl bg-slate-800/80 border border-slate-700/60 mb-4">
+            <img id="user-avatar" src="" alt="Profile" class="w-10 h-10 rounded-full bg-slate-700 object-cover" />
+            <div class="min-w-0">
+              <p id="user-name" class="text-sm font-bold text-white truncate">User</p>
+              <p id="user-email" class="text-[11px] text-slate-400 truncate">email@gmail.com</p>
+            </div>
+          </div>
+          <div class="flex gap-2">
+            <button onclick="forceCloudSync()" class="flex-1 py-2.5 rounded-xl bg-emerald-600/20 border border-emerald-500/40 text-emerald-300 font-bold text-xs active:scale-95 transition">
+              Sync Now
+            </button>
+            <button onclick="signOutGoogle()" class="flex-1 py-2.5 rounded-xl bg-rose-950/60 border border-rose-800/50 text-rose-400 font-bold text-xs active:scale-95 transition">
+              Sign Out
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==========================================
+         MONEFY CALCULATOR, ACCOUNT & TRANSFER MODAL
+         ========================================== -->
+    <div id="calc-modal" class="fixed inset-0 max-w-[430px] mx-auto bg-slate-950/95 backdrop-blur-md z-50 translate-y-full sheet-transition flex flex-col justify-between" style="padding-top: var(--safe-top); padding-bottom: var(--safe-bottom);">
+      
+      <!-- Modal Top Header -->
+      <div id="calc-header" class="px-5 py-2.5 flex items-center justify-between border-b border-slate-800/80 transition-colors">
+        <button onclick="closeCalculator()" class="w-9 h-9 rounded-xl bg-slate-800/90 flex items-center justify-center text-slate-300 active:scale-90">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+        <div class="text-center">
+          <span id="calc-mode-badge" class="text-[11px] font-extrabold uppercase tracking-widest px-3 py-1 rounded-full">NEW EXPENSE</span>
+        </div>
+        <div class="w-9"></div>
+      </div>
+
+      <!-- Amount Display & Note Input -->
+      <div class="px-5 py-3 flex flex-col items-end justify-center bg-slate-900/60 border-b border-slate-800/70">
+        <div class="text-xs font-medium text-slate-400 h-4" id="calc-expression"></div>
+        <div class="flex items-baseline gap-1.5 my-0.5 w-full justify-end overflow-x-auto no-scrollbar">
+          <span id="calc-currency-symbol" class="text-2xl font-bold text-slate-400">৳</span>
+          <span id="calc-display" class="text-4xl font-extrabold tracking-tight text-white">0</span>
+        </div>
+
+        <!-- Note & Date Row -->
+        <div class="w-full flex items-center gap-2 mt-2.5 pt-2.5 border-t border-slate-800/80">
+          <div class="flex-1 flex items-center bg-slate-800/80 rounded-xl px-3 py-2 border border-slate-700/60">
+            <i data-lucide="pencil" class="w-4 h-4 text-slate-400 mr-2 shrink-0"></i>
+            <input id="calc-note" type="text" placeholder="Add a note (e.g., Bazar, ATM Withdraw)..." class="bg-transparent text-xs text-white placeholder-slate-500 focus:outline-none w-full" />
+          </div>
+          <input id="calc-date" type="date" class="bg-slate-800/80 text-xs text-slate-300 rounded-xl px-2.5 py-2 border border-slate-700/60 focus:outline-none" />
+        </div>
+      </div>
+
+      <!-- ACCOUNT SELECTOR (Shown for Expense & Income) -->
+      <div id="single-account-section" class="px-5 pt-2">
+        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">Account</p>
+        <div id="calc-account-grid" class="grid grid-cols-3 gap-2"></div>
+      </div>
+
+      <!-- INTER-TRANSFER ACCOUNT PICKER (Shown only in Transfer Mode) -->
+      <div id="transfer-account-section" class="px-5 pt-2 hidden">
+        <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+          <div>
+            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">From Account</p>
+            <select id="transfer-from-select" onchange="onTransferAccountChange()" class="w-full bg-slate-800 text-white text-xs font-bold rounded-xl px-3 py-2.5 border border-slate-700 focus:outline-none">
+              <option value="bank">Bank</option>
+              <option value="bkash">bKash</option>
+              <option value="cash">Cash</option>
+            </select>
+          </div>
+
+          <button type="button" onclick="swapTransferAccounts()" class="mt-4 w-9 h-9 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-sky-400 active:scale-90 transition">
+            <i data-lucide="arrow-right-left" class="w-4 h-4"></i>
+          </button>
+
+          <div>
+            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">To Account</p>
+            <select id="transfer-to-select" onchange="onTransferAccountChange()" class="w-full bg-slate-800 text-white text-xs font-bold rounded-xl px-3 py-2.5 border border-slate-700 focus:outline-none">
+              <option value="cash">Cash</option>
+              <option value="bkash">bKash</option>
+              <option value="bank">Bank</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Category Picker Grid (Hidden in Transfer Mode) -->
+      <div id="calc-category-section" class="px-5 py-2">
+        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">Select Category</p>
+        <div id="calc-category-grid" class="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar"></div>
+      </div>
+
+      <!-- Built-in Calculator Keypad -->
+      <div class="px-4 pb-2.5 grid grid-cols-4 gap-1.5 flex-1 max-h-[280px]">
+        <button onclick="pressKey('7')" class="calc-key bg-slate-800/90 hover:bg-slate-700 text-white font-bold text-xl rounded-2xl active:scale-95 transition">7</button>
+        <button onclick="pressKey('8')" class="calc-key bg-slate-800/90 hover:bg-slate-700 text-white font-bold text-xl rounded-2xl active:scale-95 transition">8</button>
+        <button onclick="pressKey('9')" class="calc-key bg-slate-800/90 hover:bg-slate-700 text-white font-bold text-xl rounded-2xl active:scale-95 transition">9</button>
+        <button onclick="pressKey('/')" class="calc-key bg-slate-800/50 text-amber-400 font-bold text-xl rounded-2xl active:scale-95 transition">÷</button>
+
+        <button onclick="pressKey('4')" class="calc-key bg-slate-800/90 hover:bg-slate-700 text-white font-bold text-xl rounded-2xl active:scale-95 transition">4</button>
+        <button onclick="pressKey('5')" class="calc-key bg-slate-800/90 hover:bg-slate-700 text-white font-bold text-xl rounded-2xl active:scale-95 transition">5</button>
+        <button onclick="pressKey('6')" class="calc-key bg-slate-800/90 hover:bg-slate-700 text-white font-bold text-xl rounded-2xl active:scale-95 transition">6</button>
+        <button onclick="pressKey('*')" class="calc-key bg-slate-800/50 text-amber-400 font-bold text-xl rounded-2xl active:scale-95 transition">×</button>
+
+        <button onclick="pressKey('1')" class="calc-key bg-slate-800/90 hover:bg-slate-700 text-white font-bold text-xl rounded-2xl active:scale-95 transition">1</button>
+        <button onclick="pressKey('2')" class="calc-key bg-slate-800/90 hover:bg-slate-700 text-white font-bold text-xl rounded-2xl active:scale-95 transition">2</button>
+        <button onclick="pressKey('3')" class="calc-key bg-slate-800/90 hover:bg-slate-700 text-white font-bold text-xl rounded-2xl active:scale-95 transition">3</button>
+        <button onclick="pressKey('-')" class="calc-key bg-slate-800/50 text-amber-400 font-bold text-xl rounded-2xl active:scale-95 transition">−</button>
+
+        <button onclick="pressKey('.')" class="calc-key bg-slate-800/90 hover:bg-slate-700 text-white font-bold text-xl rounded-2xl active:scale-95 transition">.</button>
+        <button onclick="pressKey('0')" class="calc-key bg-slate-800/90 hover:bg-slate-700 text-white font-bold text-xl rounded-2xl active:scale-95 transition">0</button>
+        <button onclick="pressKey('BACK')" class="calc-key bg-slate-800/90 hover:bg-slate-700 text-rose-400 font-bold text-base rounded-2xl flex items-center justify-center active:scale-95 transition">
+          <i data-lucide="delete" class="w-5 h-5"></i>
+        </button>
+        <button onclick="pressKey('+')" class="calc-key bg-slate-800/50 text-amber-400 font-bold text-xl rounded-2xl active:scale-95 transition">+</button>
+      </div>
+
+      <!-- Submit Action Button -->
+      <div class="px-4 pb-2">
+        <button id="save-transaction-btn" onclick="saveTransaction()" class="w-full py-3.5 rounded-2xl font-extrabold text-sm uppercase tracking-wider text-white shadow-lg active:scale-98 transition flex items-center justify-center gap-2">
+          <i data-lucide="check-circle-2" class="w-5 h-5"></i>
+          <span id="save-btn-text">Add Expense</span>
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // =====================================================
+    // 1. FIREBASE GOOGLE AUTH & CLOUD SYNC CONFIGURATION
+    // =====================================================
+    // Replace these placeholder values with your own Firebase Web App config
+    // from https://console.firebase.google.com/ (Enable Google Auth + Firestore)
+    const FIREBASE_CONFIG = {
+      apiKey: "YOUR_FIREBASE_API_KEY",
+      authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_PROJECT_ID.appspot.com",
+      messagingSenderId: "YOUR_SENDER_ID",
+      appId: "YOUR_APP_ID"
+    };
+
+    let firebaseReady = false;
+    let auth = null;
+    let db = null;
+    let currentUser = null;
+    let unsubscribeSnapshot = null;
+
+    function initFirebase() {
+      if (FIREBASE_CONFIG.apiKey && !FIREBASE_CONFIG.apiKey.startsWith("YOUR_")) {
+        try {
+          firebase.initializeApp(FIREBASE_CONFIG);
+          auth = firebase.auth();
+          db = firebase.firestore();
+          firebaseReady = true;
+
+          auth.onAuthStateChanged(user => {
+            currentUser = user;
+            updateAuthUI();
+            if (user) {
+              subscribeToCloudSync(user.uid);
+            } else if (unsubscribeSnapshot) {
+              unsubscribeSnapshot();
+              unsubscribeSnapshot = null;
+            }
+          });
+        } catch (err) {
+          console.error("Firebase initialization failed:", err);
+        }
+      }
+    }
+
+    // =====================================================
+    // 2. ACCOUNTS & CATEGORIES CONFIGURATION
+    // =====================================================
+    const ACCOUNTS = [
+      { id: 'cash', name: 'Cash', icon: 'banknote', color: '#10b981' },
+      { id: 'bkash', name: 'bKash', icon: 'smartphone', color: '#ec4899' },
+      { id: 'bank', name: 'Bank', icon: 'landmark', color: '#38bdf8' }
+    ];
+
+    const EXPENSE_CATEGORIES = [
+      { id: 'food', name: 'Food & Dining', icon: 'utensils', color: '#f97316' },
+      { id: 'transport', name: 'Transport', icon: 'car', color: '#3b82f6' },
+      { id: 'groceries', name: 'Groceries', icon: 'shopping-cart', color: '#10b981' },
+      { id: 'bills', name: 'Bills & Mobile', icon: 'zap', color: '#eab308' },
+      { id: 'house', name: 'Housing', icon: 'home', color: '#8b5cf6' },
+      { id: 'shopping', name: 'Shopping', icon: 'shopping-bag', color: '#ec4899' },
+      { id: 'health', name: 'Health', icon: 'heart-pulse', color: '#ef4444' },
+      { id: 'entertainment', name: 'Leisure', icon: 'film', color: '#06b6d4' },
+      { id: 'family', name: 'Family & Gifts', icon: 'gift', color: '#f43f5e' },
+      { id: 'other_exp', name: 'Other', icon: 'layers', color: '#64748b' }
+    ];
+
+    const INCOME_CATEGORIES = [
+      { id: 'salary', name: 'Salary', icon: 'wallet', color: '#10b981' },
+      { id: 'savings', name: 'Savings / Bonus', icon: 'piggy-bank', color: '#14b8a6' },
+      { id: 'freelance', name: 'Side Income', icon: 'laptop', color: '#3b82f6' }
+    ];
+
+    const CURRENCIES = [
+      { symbol: '৳', code: 'BDT' },
+      { symbol: '$', code: 'USD' },
+      { symbol: '€', code: 'EUR' },
+      { symbol: '₹', code: 'INR' }
+    ];
+
+    // =====================================================
+    // 3. APPLICATION STATE & STORAGE / CLOUD SYNC
+    // =====================================================
+    let state = {
+      transactions: [],
+      filter: 'month', // 'day' | 'month' | 'all'
+      accountFilter: 'all', // 'all' | 'cash' | 'bkash' | 'bank'
+      currencyIndex: 0,
+      calcMode: 'expense', // 'expense' | 'income' | 'transfer'
+      selectedCategoryId: 'food',
+      selectedAccountId: 'cash',
+      calcBuffer: '0',
+      updatedAt: 0
+    };
+
+    const STORAGE_KEY = 'monefy_ios_webapp_v2';
+
+    function loadState() {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          state.transactions = (parsed.transactions || []).map(t => ({
+            accountId: 'cash',
+            ...t
+          }));
+          state.currencyIndex = parsed.currencyIndex ?? 0;
+          state.updatedAt = parsed.updatedAt || 0;
+        } catch (e) {
+          seedDemoData();
+        }
+      } else {
+        seedDemoData();
+      }
+    }
+
+    function seedDemoData() {
+      const today = new Date().toISOString().split('T')[0];
+      state.transactions = [
+        { id: '1', type: 'income', accountId: 'bank', categoryId: 'salary', amount: 45000, note: 'Monthly Salary', date: today },
+        { id: '2', type: 'transfer', fromAccountId: 'bank', toAccountId: 'cash', amount: 15000, note: 'ATM Withdrawal', date: today },
+        { id: '3', type: 'transfer', fromAccountId: 'bank', toAccountId: 'bkash', amount: 5000, note: 'Add Money to bKash', date: today },
+        { id: '4', type: 'expense', accountId: 'cash', categoryId: 'groceries', amount: 3200, note: 'Bazar & Essentials', date: today },
+        { id: '5', type: 'expense', accountId: 'bkash', categoryId: 'bills', amount: 1200, note: 'Internet & Mobile', date: today },
+        { id: '6', type: 'expense', accountId: 'cash', categoryId: 'food', amount: 850, note: 'Lunch & Tea', date: today }
+      ];
+      saveState();
+    }
+
+    function saveState(skipCloud = false) {
+      state.updatedAt = Date.now();
+      const payload = {
+        transactions: state.transactions,
+        currencyIndex: state.currencyIndex,
+        updatedAt: state.updatedAt
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+
+      if (!skipCloud && currentUser && db) {
+        setSyncIndicator('syncing');
+        db.collection('users').doc(currentUser.uid).set(payload, { merge: true })
+          .then(() => setSyncIndicator('synced'))
+          .catch(err => {
+            console.error('Cloud sync write error:', err);
+            setSyncIndicator('error');
+          });
+      }
+    }
+
+    function subscribeToCloudSync(uid) {
+      if (!db) return;
+      setSyncIndicator('syncing');
+      unsubscribeSnapshot = db.collection('users').doc(uid).onSnapshot(doc => {
+        if (doc.exists) {
+          const remote = doc.data();
+          if ((remote.updatedAt || 0) > (state.updatedAt || 0)) {
+            state.transactions = remote.transactions || [];
+            state.currencyIndex = remote.currencyIndex ?? state.currencyIndex;
+            state.updatedAt = remote.updatedAt;
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({
+              transactions: state.transactions,
+              currencyIndex: state.currencyIndex,
+              updatedAt: state.updatedAt
+            }));
+            renderApp();
+          } else if ((state.updatedAt || 0) > (remote.updatedAt || 0)) {
+            saveState(false);
+          }
+          setSyncIndicator('synced');
+        } else {
+          // First-time sign-in: push existing local records to Google account
+          saveState(false);
+        }
+      }, err => {
+        console.error('Snapshot error:', err);
+        setSyncIndicator('error');
+      });
+    }
+
+    function setSyncIndicator(status) {
+      const dot = document.getElementById('sync-dot');
+      const subtext = document.getElementById('sync-status-subtext');
+      if (!currentUser) {
+        dot.className = 'w-2 h-2 rounded-full bg-slate-500';
+        subtext.textContent = 'Stored locally on device';
+        return;
+      }
+      if (status === 'syncing') {
+        dot.className = 'w-2 h-2 rounded-full bg-amber-400 animate-pulse';
+        subtext.textContent = `Syncing with ${currentUser.email}...`;
+      } else if (status === 'error') {
+        dot.className = 'w-2 h-2 rounded-full bg-rose-500';
+        subtext.textContent = 'Sync paused (offline)';
+      } else {
+        dot.className = 'w-2 h-2 rounded-full bg-emerald-400';
+        subtext.textContent = `Synced to ${currentUser.email}`;
+      }
+    }
+
+    // =====================================================
+    // 4. GOOGLE AUTH HANDLERS
+    // =====================================================
+    function handleGoogleAuthClick() {
+      const modal = document.getElementById('auth-modal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      updateAuthUI();
+    }
+
+    function closeAuthModal() {
+      const modal = document.getElementById('auth-modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function updateAuthUI() {
+      const btnLabel = document.getElementById('auth-btn-label');
+      const signedOutView = document.getElementById('auth-signed-out-view');
+      const signedInView = document.getElementById('auth-signed-in-view');
+      const configHint = document.getElementById('firebase-config-hint');
+
+      if (!firebaseReady) {
+        configHint.classList.remove('hidden');
+      } else {
+        configHint.classList.add('hidden');
+      }
+
+      if (currentUser) {
+        const firstName = (currentUser.displayName || 'Synced').split(' ')[0];
+        btnLabel.textContent = firstName;
+        signedOutView.classList.add('hidden');
+        signedInView.classList.remove('hidden');
+        document.getElementById('user-name').textContent = currentUser.displayName || 'Google User';
+        document.getElementById('user-email').textContent = currentUser.email || '';
+        document.getElementById('user-avatar').src = currentUser.photoURL || 'https://www.gravatar.com/avatar/?d=mp';
+        setSyncIndicator('synced');
+      } else {
+        btnLabel.textContent = 'Sign in';
+        signedOutView.classList.remove('hidden');
+        signedInView.classList.add('hidden');
+        setSyncIndicator('offline');
+      }
+    }
+
+    function signInWithGoogle() {
+      if (!firebaseReady) {
+        alert('Please add your Firebase Web App credentials in FIREBASE_CONFIG inside index.html to enable live Google Sign-In & Cloud Sync.');
+        return;
+      }
+      const provider = new firebase.auth.GoogleAuthProvider();
+      auth.signInWithPopup(provider).catch(err => {
+        // Fallback for iOS Safari standalone PWA mode where popups may be restricted
+        if (err.code === 'auth/popup-blocked' || err.code === 'auth/operation-not-supported-in-this-environment') {
+          auth.signInWithRedirect(provider);
+        } else {
+          alert('Google Sign-In error: ' + err.message);
+        }
+      });
+    }
+
+    function forceCloudSync() {
+      if (currentUser) {
+        saveState(false);
+      }
+    }
+
+    function signOutGoogle() {
+      if (auth) {
+        auth.signOut().then(() => {
+          closeAuthModal();
+        });
+      }
+    }
+
+    // =====================================================
+    // 5. FILTERING, ACCOUNT BALANCES & COMPUTATION
+    // =====================================================
+    function getCurrency() {
+      return CURRENCIES[state.currencyIndex].symbol;
+    }
+
+    function formatMoney(num) {
+      const sym = getCurrency();
+      return `${sym}${Number(num).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+    }
+
+    function getAccountMeta(accId) {
+      return ACCOUNTS.find(a => a.id === accId) || ACCOUNTS[0];
+    }
+
+    function getFilteredTransactions() {
+      const now = new Date();
+      const todayStr = now.toISOString().split('T')[0];
+      const currentMonthPrefix = todayStr.slice(0, 7);
+
+      return state.transactions.filter(t => {
+        // Period match
+        let periodOk = true;
+        if (state.filter === 'day') periodOk = t.date === todayStr;
+        else if (state.filter === 'month') periodOk = t.date.startsWith(currentMonthPrefix);
+        if (!periodOk) return false;
+
+        // Account filter match
+        if (state.accountFilter === 'all') return true;
+        if (t.type === 'transfer') {
+          return t.fromAccountId === state.accountFilter || t.toAccountId === state.accountFilter;
+        }
+        return (t.accountId || 'cash') === state.accountFilter;
+      });
+    }
+
+    function computeAccountBalances(transactionsList) {
+      const balances = { cash: 0, bkash: 0, bank: 0 };
+      transactionsList.forEach(t => {
+        if (t.type === 'income') {
+          const acc = t.accountId || 'cash';
+          if (balances[acc] !== undefined) balances[acc] += t.amount;
+        } else if (t.type === 'expense') {
+          const acc = t.accountId || 'cash';
+          if (balances[acc] !== undefined) balances[acc] -= t.amount;
+        } else if (t.type === 'transfer') {
+          if (balances[t.fromAccountId] !== undefined) balances[t.fromAccountId] -= t.amount;
+          if (balances[t.toAccountId] !== undefined) balances[t.toAccountId] += t.amount;
+        }
+      });
+      return balances;
+    }
+
+    function setFilter(filterType) {
+      state.filter = filterType;
+      ['day', 'month', 'all'].forEach(f => {
+        const btn = document.getElementById(`filter-${f}`);
+        btn.className = f === filterType
+          ? 'px-2 py-1 rounded-lg transition-all bg-slate-700 text-white shadow'
+          : 'px-2 py-1 rounded-lg transition-all text-slate-400';
+      });
+      renderApp();
+    }
+
+    function setAccountFilter(accId) {
+      state.accountFilter = accId;
+      ['all', 'cash', 'bkash', 'bank'].forEach(id => {
+        const btn = document.getElementById(`acc-filter-${id}`);
+        if (id === accId) {
+          btn.className = 'px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 transition flex items-center gap-1';
+        } else {
+          btn.className = 'px-2.5 py-1 rounded-full text-[11px] font-semibold bg-slate-800/80 text-slate-400 border border-slate-700/60 transition flex items-center gap-1';
+        }
+      });
+      renderApp();
+    }
+
+    function cycleCurrency() {
+      state.currencyIndex = (state.currencyIndex + 1) % CURRENCIES.length;
+      const curr = CURRENCIES[state.currencyIndex];
+      document.getElementById('currency-label').textContent = `${curr.symbol} (${curr.code})`;
+      document.getElementById('calc-currency-symbol').textContent = curr.symbol;
+      saveState();
+      renderApp();
+    }
+
+    function updatePeriodLabel() {
+      const now = new Date();
+      const labelEl = document.getElementById('current-period-label');
+      const accSuffix = state.accountFilter === 'all' ? '' : ` • ${getAccountMeta(state.accountFilter).name}`;
+      if (state.filter === 'day') {
+        labelEl.textContent = now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) + accSuffix;
+      } else if (state.filter === 'month') {
+        labelEl.textContent = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) + accSuffix;
+      } else {
+        labelEl.textContent = 'All Time Records' + accSuffix;
+      }
+    }
+
+    // =====================================================
+    // 6. RENDERING: DONUT RING, ORBIT ICONS & BALANCES
+    // =====================================================
+    function renderApp() {
+      updatePeriodLabel();
+      const list = getFilteredTransactions();
+
+      let totalIncome = 0;
+      let totalExpense = 0;
+      const categoryTotals = {};
+      EXPENSE_CATEGORIES.forEach(c => categoryTotals[c.id] = 0);
+
+      list.forEach(t => {
+        if (t.type === 'income') {
+          totalIncome += t.amount;
+        } else if (t.type === 'expense') {
+          totalExpense += t.amount;
+          if (categoryTotals[t.categoryId] !== undefined) {
+            categoryTotals[t.categoryId] += t.amount;
+          } else {
+            categoryTotals['other_exp'] += t.amount;
+          }
+        } else if (t.type === 'transfer' && state.accountFilter !== 'all') {
+          // When viewing a specific account, incoming transfers add to inflows & outgoing add to outflows
+          if (t.toAccountId === state.accountFilter) totalIncome += t.amount;
+          if (t.fromAccountId === state.accountFilter) totalExpense += t.amount;
+        }
+      });
+
+      const netBalance = totalIncome - totalExpense;
+
+      // Update Center Readout
+      document.getElementById('center-income').textContent = `+${formatMoney(totalIncome)}`;
+      document.getElementById('center-expense').textContent = `-${formatMoney(totalExpense)}`;
+
+      // Update Balance Pill
+      const pill = document.getElementById('balance-pill');
+      const pillLabel = document.getElementById('balance-pill-label');
+      const netText = document.getElementById('net-balance-text');
+
+      pillLabel.textContent = state.accountFilter === 'all'
+        ? 'Balance'
+        : `${getAccountMeta(state.accountFilter).name} Bal`;
+      netText.textContent = `${netBalance >= 0 ? '' : '-'}${formatMoney(Math.abs(netBalance))}`;
+
+      if (netBalance >= 0) {
+        pill.className = 'w-full max-w-[270px] py-2 px-5 rounded-full font-extrabold text-sm tracking-wide shadow-lg shadow-emerald-600/25 flex items-center justify-between transition-all active:scale-95 bg-gradient-to-r from-emerald-600 to-teal-500 text-white';
+      } else {
+        pill.className = 'w-full max-w-[270px] py-2 px-5 rounded-full font-extrabold text-sm tracking-wide shadow-lg shadow-rose-600/25 flex items-center justify-between transition-all active:scale-95 bg-gradient-to-r from-rose-600 to-pink-600 text-white';
+      }
+
+      // Update All-Time Account Balances in Drawer
+      const allAccBalances = computeAccountBalances(state.transactions);
+      document.getElementById('acc-bal-cash').textContent = formatMoney(allAccBalances.cash);
+      document.getElementById('acc-bal-bkash').textContent = formatMoney(allAccBalances.bkash);
+      document.getElementById('acc-bal-bank').textContent = formatMoney(allAccBalances.bank);
+
+      renderDonutChart(categoryTotals, totalExpense);
+      renderOrbitNodes(categoryTotals, totalExpense);
+      renderHistoryList(list);
+      lucide.createIcons();
+    }
+
+    function renderDonutChart(categoryTotals, totalExpense) {
+      const group = document.getElementById('donut-segments');
+      group.innerHTML = '';
+
+      const radius = 46;
+      const circumference = 2 * Math.PI * radius;
+      const sumCat = Object.values(categoryTotals).reduce((a, b) => a + b, 0);
+
+      if (sumCat <= 0) {
+        const emptyCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        emptyCircle.setAttribute('cx', '60');
+        emptyCircle.setAttribute('cy', '60');
+        emptyCircle.setAttribute('r', radius);
+        emptyCircle.setAttribute('fill', 'transparent');
+        emptyCircle.setAttribute('stroke', '#334155');
+        emptyCircle.setAttribute('stroke-width', '14');
+        group.appendChild(emptyCircle);
+        return;
+      }
+
+      let accumulatedPercent = 0;
+
+      EXPENSE_CATEGORIES.forEach(cat => {
+        const amount = categoryTotals[cat.id] || 0;
+        if (amount <= 0) return;
+
+        const percent = amount / sumCat;
+        const strokeLength = percent * circumference;
+        const offset = -accumulatedPercent * circumference;
+
+        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        circle.setAttribute('cx', '60');
+        circle.setAttribute('cy', '60');
+        circle.setAttribute('r', radius);
+        circle.setAttribute('fill', 'transparent');
+        circle.setAttribute('stroke', cat.color);
+        circle.setAttribute('stroke-width', '14');
+        circle.setAttribute('stroke-dasharray', `${Math.max(strokeLength - 1.5, 1)} ${circumference}`);
+        circle.setAttribute('stroke-dashoffset', offset);
+        circle.setAttribute('class', 'donut-segment');
+
+        group.appendChild(circle);
+        accumulatedPercent += percent;
+      });
+    }
+
+    function renderOrbitNodes(categoryTotals, totalExpense) {
+      const container = document.getElementById('orbit-container');
+      container.innerHTML = '';
+
+      const centerX = 165;
+      const centerY = 165;
+      const orbitRadius = 132;
+      const count = EXPENSE_CATEGORIES.length;
+      const sumCat = Object.values(categoryTotals).reduce((a, b) => a + b, 0);
+
+      EXPENSE_CATEGORIES.forEach((cat, index) => {
+        const angle = (index / count) * (2 * Math.PI) - (Math.PI / 2);
+        const x = centerX + orbitRadius * Math.cos(angle);
+        const y = centerY + orbitRadius * Math.sin(angle);
+
+        const amt = categoryTotals[cat.id] || 0;
+        const pct = sumCat > 0 ? Math.round((amt / sumCat) * 100) : 0;
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.onclick = () => openCalculator('expense', cat.id);
+        btn.className = 'orbit-node pointer-events-auto absolute flex flex-col items-center justify-center focus:outline-none';
+        btn.style.left = `${x}px`;
+        btn.style.top = `${y}px`;
+        btn.style.transform = 'translate(-50%, -50%)';
+
+        const activeRing = pct > 0 ? `border-color: ${cat.color}; box-shadow: 0 0 14px ${cat.color}33;` : 'border-color: #334155;';
+
+        btn.innerHTML = `
+          <div class="w-10 h-10 rounded-2xl bg-slate-800/95 border-2 flex items-center justify-center transition-all" style="${activeRing}">
+            <i data-lucide="${cat.icon}" class="w-4 h-4" style="color: ${cat.color}"></i>
+          </div>
+          <span class="mt-0.5 text-[10px] font-bold px-1.5 rounded-full ${pct > 0 ? 'text-white bg-slate-800/90' : 'text-slate-500'}">
+            ${pct > 0 ? pct + '%' : cat.name.split(' ')[0]}
+          </span>
+        `;
+
+        container.appendChild(btn);
+      });
+    }
+
+    // =====================================================
+    // 7. TRANSACTION DRAWER & HISTORY LIST
+    // =====================================================
+    let drawerOpen = false;
+
+    function toggleHistoryDrawer() {
+      drawerOpen = !drawerOpen;
+      const drawer = document.getElementById('history-drawer');
+      const backdrop = document.getElementById('history-backdrop');
+
+      if (drawerOpen) {
+        backdrop.classList.remove('hidden');
+        setTimeout(() => backdrop.classList.add('opacity-100'), 10);
+        drawer.classList.remove('translate-y-full');
+      } else {
+        backdrop.classList.remove('opacity-100');
+        drawer.classList.add('translate-y-full');
+        setTimeout(() => backdrop.classList.add('hidden'), 300);
+      }
+    }
+
+    function renderHistoryList(list) {
+      const container = document.getElementById('transactions-list');
+      container.innerHTML = '';
+
+      if (list.length === 0) {
+        container.innerHTML = `
+          <div class="text-center py-12 text-slate-500">
+            <p class="text-sm font-semibold">No records for this selection.</p>
+            <p class="text-xs mt-1">Tap any category icon, +, -, or ⇄ to record.</p>
+          </div>
+        `;
+        return;
+      }
+
+      const sorted = [...list].sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
+
+      sorted.forEach(item => {
+        const row = document.createElement('div');
+        row.className = 'flex items-center justify-between p-3 rounded-2xl bg-slate-800/60 border border-slate-800';
+
+        if (item.type === 'transfer') {
+          const fromAcc = getAccountMeta(item.fromAccountId);
+          const toAcc = getAccountMeta(item.toAccountId);
+          row.innerHTML = `
+            <div class="flex items-center gap-3 min-w-0">
+              <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-sky-500/20 text-sky-400">
+                <i data-lucide="arrow-left-right" class="w-5 h-5"></i>
+              </div>
+              <div class="min-w-0">
+                <p class="text-sm font-bold text-white truncate">${item.note || `${fromAcc.name} → ${toAcc.name}`}</p>
+                <p class="text-[11px] text-sky-400 font-semibold">${fromAcc.name} → ${toAcc.name} • <span class="text-slate-400 font-normal">${item.date}</span></p>
+              </div>
+            </div>
+            <div class="flex items-center gap-3 shrink-0 ml-2">
+              <span class="text-sm font-extrabold text-sky-400">
+                ⇄ ${formatMoney(item.amount)}
+              </span>
+              <button onclick="deleteTransaction('${item.id}')" class="text-slate-500 hover:text-rose-400 p-1">
+                <i data-lucide="trash" class="w-4 h-4"></i>
+              </button>
+            </div>
+          `;
+        } else {
+          const allCats = [...EXPENSE_CATEGORIES, ...INCOME_CATEGORIES];
+          const cat = allCats.find(c => c.id === item.categoryId) || { name: 'Other', icon: 'circle-dot', color: '#64748b' };
+          const acc = getAccountMeta(item.accountId || 'cash');
+          const isInc = item.type === 'income';
+
+          row.innerHTML = `
+            <div class="flex items-center gap-3 min-w-0">
+              <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style="background:${cat.color}22; color:${cat.color}">
+                <i data-lucide="${cat.icon}" class="w-5 h-5"></i>
+              </div>
+              <div class="min-w-0">
+                <p class="text-sm font-bold text-white truncate">${item.note || cat.name}</p>
+                <div class="flex items-center gap-1.5 mt-0.5">
+                  <span class="text-[10px] font-bold px-1.5 py-0.2 rounded bg-slate-700/80 text-slate-300">${acc.name}</span>
+                  <span class="text-[11px] text-slate-400 truncate">${cat.name} • ${item.date}</span>
+                </div>
+              </div>
+            </div>
+            <div class="flex items-center gap-3 shrink-0 ml-2">
+              <span class="text-sm font-extrabold ${isInc ? 'text-emerald-400' : 'text-rose-400'}">
+                ${isInc ? '+' : '-'}${formatMoney(item.amount)}
+              </span>
+              <button onclick="deleteTransaction('${item.id}')" class="text-slate-500 hover:text-rose-400 p-1">
+                <i data-lucide="trash" class="w-4 h-4"></i>
+              </button>
+            </div>
+          `;
+        }
+
+        container.appendChild(row);
+      });
+    }
+
+    function deleteTransaction(id) {
+      state.transactions = state.transactions.filter(t => t.id !== id);
+      saveState();
+      renderApp();
+    }
+
+    function clearAllData() {
+      if (confirm('Clear all saved transactions?')) {
+        state.transactions = [];
+        saveState();
+        renderApp();
+      }
+    }
+
+    function exportCSV() {
+      if (state.transactions.length === 0) return alert('No transactions to export.');
+      const headers = ['Date,Type,Account,FromAccount,ToAccount,Category,Note,Amount'];
+      const rows = state.transactions.map(t =>
+        `${t.date},${t.type},${t.accountId || ''},${t.fromAccountId || ''},${t.toAccountId || ''},${t.categoryId || 'transfer'},"${(t.note || '').replace(/"/g, '""')}",${t.amount}`
+      );
+      const csv = 'data:text/csv;charset=utf-8,' + [headers, ...rows].join('\n');
+      const link = document.createElement('a');
+      link.setAttribute('href', encodeURI(csv));
+      link.setAttribute('download', `monefy_export_${new Date().toISOString().slice(0,10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    }
+
+    // =====================================================
+    // 8. BUILT-IN CALCULATOR, ACCOUNT & TRANSFER MODAL
+    // =====================================================
+    function openCalculator(mode, categoryId) {
+      state.calcMode = mode;
+      state.calcBuffer = '0';
+      document.getElementById('calc-expression').textContent = '';
+      document.getElementById('calc-display').textContent = '0';
+      document.getElementById('calc-note').value = '';
+      document.getElementById('calc-date').value = new Date().toISOString().split('T')[0];
+
+      // Default selected account to currently filtered account if one is selected
+      if (state.accountFilter !== 'all') {
+        state.selectedAccountId = state.accountFilter;
+      }
+
+      const badge = document.getElementById('calc-mode-badge');
+      const saveBtn = document.getElementById('save-transaction-btn');
+      const saveBtnText = document.getElementById('save-btn-text');
+
+      const singleAccSec = document.getElementById('single-account-section');
+      const transferAccSec = document.getElementById('transfer-account-section');
+      const catSec = document.getElementById('calc-category-section');
+
+      if (mode === 'transfer') {
+        badge.textContent = 'INTER-ACCOUNT TRANSFER';
+        badge.className = 'text-[11px] font-extrabold uppercase tracking-widest px-3 py-1 rounded-full bg-sky-500/20 text-sky-400 border border-sky-500/30';
+        saveBtn.className = 'w-full py-3.5 rounded-2xl font-extrabold text-sm uppercase tracking-wider text-white shadow-lg bg-gradient-to-r from-indigo-600 to-sky-500 active:scale-98 transition flex items-center justify-center gap-2';
+        saveBtnText.textContent = 'Complete Transfer';
+
+        singleAccSec.classList.add('hidden');
+        catSec.classList.add('hidden');
+        transferAccSec.classList.remove('hidden');
+
+        // Default From = Bank, To = Cash (or based on active account filter)
+        const fromSel = document.getElementById('transfer-from-select');
+        const toSel = document.getElementById('transfer-to-select');
+        fromSel.value = state.accountFilter !== 'all' ? state.accountFilter : 'bank';
+        toSel.value = fromSel.value === 'cash' ? 'bkash' : 'cash';
+      } else {
+        singleAccSec.classList.remove('hidden');
+        catSec.classList.remove('hidden');
+        transferAccSec.classList.add('hidden');
+
+        const categories = mode === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
+        state.selectedCategoryId = categoryId || categories[0].id;
+
+        if (mode === 'income') {
+          badge.textContent = 'NEW INCOME';
+          badge.className = 'text-[11px] font-extrabold uppercase tracking-widest px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
+          saveBtn.className = 'w-full py-3.5 rounded-2xl font-extrabold text-sm uppercase tracking-wider text-white shadow-lg bg-emerald-600 hover:bg-emerald-500 active:scale-98 transition flex items-center justify-center gap-2';
+          saveBtnText.textContent = 'Add Income';
+        } else {
+          badge.textContent = 'NEW EXPENSE';
+          badge.className = 'text-[11px] font-extrabold uppercase tracking-widest px-3 py-1 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/30';
+          saveBtn.className = 'w-full py-3.5 rounded-2xl font-extrabold text-sm uppercase tracking-wider text-white shadow-lg bg-rose-600 hover:bg-rose-500 active:scale-98 transition flex items-center justify-center gap-2';
+          saveBtnText.textContent = 'Add Expense';
+        }
+
+        renderCalcAccounts();
+        renderCalcCategories();
+      }
+
+      document.getElementById('calc-modal').classList.remove('translate-y-full');
+      lucide.createIcons();
+    }
+
+    function closeCalculator() {
+      document.getElementById('calc-modal').classList.add('translate-y-full');
+    }
+
+    function swapTransferAccounts() {
+      const fromSel = document.getElementById('transfer-from-select');
+      const toSel = document.getElementById('transfer-to-select');
+      const temp = fromSel.value;
+      fromSel.value = toSel.value;
+      toSel.value = temp;
+    }
+
+    function onTransferAccountChange() {
+      const fromSel = document.getElementById('transfer-from-select');
+      const toSel = document.getElementById('transfer-to-select');
+      if (fromSel.value === toSel.value) {
+        const alternative = ACCOUNTS.find(a => a.id !== fromSel.value);
+        if (alternative) toSel.value = alternative.id;
+      }
+    }
+
+    function renderCalcAccounts() {
+      const grid = document.getElementById('calc-account-grid');
+      grid.innerHTML = '';
+
+      ACCOUNTS.forEach(acc => {
+        const selected = acc.id === state.selectedAccountId;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.onclick = () => {
+          state.selectedAccountId = acc.id;
+          renderCalcAccounts();
+          lucide.createIcons();
+        };
+        btn.className = `flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-xl border text-xs font-bold transition-all ${
+          selected ? 'bg-slate-800 text-white shadow' : 'bg-slate-900/60 text-slate-400 border-slate-800 opacity-75'
+        }`;
+        if (selected) btn.style.borderColor = acc.color;
+
+        btn.innerHTML = `
+          <i data-lucide="${acc.icon}" class="w-3.5 h-3.5" style="color:${acc.color}"></i>
+          <span>${acc.name}</span>
+        `;
+        grid.appendChild(btn);
+      });
+    }
+
+    function renderCalcCategories() {
+      const grid = document.getElementById('calc-category-grid');
+      grid.innerHTML = '';
+      const categories = state.calcMode === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
+
+      categories.forEach(cat => {
+        const selected = cat.id === state.selectedCategoryId;
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.onclick = () => {
+          state.selectedCategoryId = cat.id;
+          renderCalcCategories();
+          lucide.createIcons();
+        };
+        chip.className = `flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-bold shrink-0 transition-all ${
+          selected ? 'bg-slate-800 text-white scale-105' : 'bg-slate-900/60 text-slate-400 border-slate-800 opacity-70'
+        }`;
+        if (selected) chip.style.borderColor = cat.color;
+
+        chip.innerHTML = `
+          <i data-lucide="${cat.icon}" class="w-4 h-4" style="color:${cat.color}"></i>
+          <span>${cat.name}</span>
+        `;
+        grid.appendChild(chip);
+      });
+    }
+
+    function evaluateBuffer(expr) {
+      try {
+        const sanitized = expr.replace(/[^0-9.+\-*/]/g, '');
+        if (!sanitized) return 0;
+        const result = Function(`"use strict"; return (${sanitized})`)();
+        return isFinite(result) ? Math.round(result * 100) / 100 : 0;
+      } catch {
+        return 0;
+      }
+    }
+
+    function pressKey(key) {
+      const display = document.getElementById('calc-display');
+      const exprEl = document.getElementById('calc-expression');
+
+      if (key === 'BACK') {
+        state.calcBuffer = state.calcBuffer.length > 1 ? state.calcBuffer.slice(0, -1) : '0';
+      } else if (['+', '-', '*', '/'].includes(key)) {
+        const lastChar = state.calcBuffer.slice(-1);
+        if (['+', '-', '*', '/'].includes(lastChar)) {
+          state.calcBuffer = state.calcBuffer.slice(0, -1) + key;
+        } else {
+          state.calcBuffer += key;
+        }
+      } else {
+        if (state.calcBuffer === '0' && key !== '.') {
+          state.calcBuffer = key;
+        } else {
+          state.calcBuffer += key;
+        }
+      }
+
+      const hasOperator = /[+\-*/]/.test(state.calcBuffer.slice(1));
+      if (hasOperator) {
+        exprEl.textContent = state.calcBuffer.replace(/\*/g, '×').replace(/\//g, '÷');
+        display.textContent = evaluateBuffer(state.calcBuffer);
+      } else {
+        exprEl.textContent = '';
+        display.textContent = state.calcBuffer;
+      }
+    }
+
+    function saveTransaction() {
+      const amount = evaluateBuffer(state.calcBuffer);
+      if (!amount || amount <= 0) {
+        alert('Please enter an amount greater than 0.');
+        return;
+      }
+
+      const note = document.getElementById('calc-note').value.trim();
+      const date = document.getElementById('calc-date').value || new Date().toISOString().split('T')[0];
+
+      if (state.calcMode === 'transfer') {
+        const fromAccountId = document.getElementById('transfer-from-select').value;
+        const toAccountId = document.getElementById('transfer-to-select').value;
+
+        if (fromAccountId === toAccountId) {
+          alert('Please choose two different accounts for an inter-transfer.');
+          return;
+        }
+
+        state.transactions.push({
+          id: Date.now().toString(),
+          type: 'transfer',
+          fromAccountId,
+          toAccountId,
+          amount,
+          note,
+          date
+        });
+      } else {
+        state.transactions.push({
+          id: Date.now().toString(),
+          type: state.calcMode,
+          accountId: state.selectedAccountId,
+          categoryId: state.selectedCategoryId,
+          amount,
+          note,
+          date
+        });
+      }
+
+      saveState();
+      closeCalculator();
+      renderApp();
+    }
+
+    // Initialize App on Load
+    window.addEventListener('DOMContentLoaded', () => {
+      initFirebase();
+      loadState();
+      const curr = CURRENCIES[state.currencyIndex];
+      document.getElementById('currency-label').textContent = `${curr.symbol} (${curr.code})`;
+      document.getElementById('calc-currency-symbol').textContent = curr.symbol;
+      renderApp();
+    });
+  </script>
+</body>
+</html>
