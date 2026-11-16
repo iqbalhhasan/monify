@@ -92,6 +92,7 @@ const pd=s=>{const[a,b,c]=s.split("-");return new Date(a,b-1,c)};
 const def=()=>({accs:[{id:"cash",name:"Cash",emoji:"💵",open:0},{id:"bkash",name:"bKash",emoji:"📱",open:0},{id:"bank",name:"Bank",emoji:"🏦",open:0}],tx:[],t:0});
 let S=def(),V={acc:"all",per:"month",off:0},ref=null;
 try{const x=localStorage.getItem("sw");if(x)S=JSON.parse(x)}catch(e){}
+try{const a=localStorage.getItem("swacc");if(a&&S.accs.some(z=>z.id===a))V.acc=a}catch(e){}
 function save(){S.t=Date.now();try{localStorage.setItem("sw",JSON.stringify(S))}catch(e){}
  if(ref)ref.set({json:JSON.stringify(S),t:S.t}).catch(()=>{});render()}
 function range(){const n=new Date();n.setHours(0,0,0,0);let a,b,l;
@@ -174,7 +175,7 @@ function setSyn(){const e=$("syn");if(e)e.innerHTML=ref?"✅ <b>Synced</b> to yo
 document.addEventListener("click",e=>{const g=s=>e.target.closest(s);let x;
  if(x=g("[data-p]")){V.per=x.dataset.p;V.off=0;render()}
  else if(x=g(".ci")){form("e",null,x.dataset.c)}
- else if(x=g("[data-a]")){V.acc=x.dataset.a;close();render()}
+ else if(x=g("[data-a]")){V.acc=x.dataset.a;try{localStorage.setItem("swacc",V.acc)}catch(e){}close();render()}
  else if(x=g("[data-t]")){const t=S.tx.find(y=>String(y.id)===x.dataset.t);if(t)form(t.type,t)}});
 $("pv").onclick=()=>{V.off--;render()};$("nx").onclick=()=>{V.off++;render()};
 $("bE").onclick=()=>form("e");$("bI").onclick=()=>form("i");$("bT").onclick=()=>form("t");
