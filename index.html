@@ -3,6 +3,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="theme-color" content="#101a2e">
 <title>Monify</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
 <style>
 :root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:dark;
 --bg:#101a2e;--pn:#182540;--pn2:#1f2e4c;--line:#2a3a5a;--tx:#f1f5fb;--mut:#8d9ab3;--g:#19c37d;--r:#ff4565}
@@ -157,18 +159,50 @@ function log(){
 function picker(){
  open(`<h2>Account</h2><button class="pk ${V.acc==="all"?"on":""}" data-a="all"><span>🧾 All accounts</span><b>${money(S.accs.reduce((s,a)=>s+bal(a.id),0))}</b></button>`+S.accs.map(a=>`<button class="pk ${V.acc===a.id?"on":""}" data-a="${a.id}"><span>${esc(a.emoji||"")} ${esc(a.name)}</span><b>${money(bal(a.id))}</b></button>`).join(""));
 }
+function report(){
+ if(!window.jspdf){alert("PDF tools could not load. Check your connection and try again.");return}
+ const per=$("rp").value,acc=$("ra").value,n=new Date();n.setHours(0,0,0,0);let a=new Date(n),b=new Date(n),l;
+ const f=d=>d.toLocaleDateString("en",{day:"numeric",month:"short",year:"numeric"});
+ if(per==="day")l="Today, "+f(n);
+ else if(per==="week"){a.setDate(a.getDate()-((a.getDay()+6)%7));b=new Date(a);b.setDate(b.getDate()+6);l="This week: "+f(a)+" - "+f(b)}
+ else if(per==="month"){a=new Date(n.getFullYear(),n.getMonth(),1);b=new Date(n.getFullYear(),n.getMonth()+1,0);l=a.toLocaleDateString("en",{month:"long",year:"numeric"})}
+ else if(per==="year"){a=new Date(n.getFullYear(),0,1);b=new Date(n.getFullYear(),11,31);l="Year "+n.getFullYear()}
+ else l="All time";
+ const A=per==="all"?"0000":ds(a),B=per==="all"?"9999":ds(b),own=t=>acc==="all"||t.acc===acc;
+ const tx=S.tx.filter(t=>t.date>=A&&t.date<=B&&(acc==="all"||t.acc===acc||(t.type==="t"&&t.to===acc))).sort((x,y)=>x.date.localeCompare(y.date)||x.id-y.id);
+ if(!tx.length){alert("No records in this period.");return}
+ const sum=g=>tx.filter(g).reduce((s,t)=>s+t.amt,0);
+ const inc=sum(t=>t.type==="i"&&own(t)),exp=sum(t=>t.type==="e"&&own(t)),tin=acc==="all"?0:sum(t=>t.type==="t"&&t.to===acc),tout=acc==="all"?0:sum(t=>t.type==="t"&&t.acc===acc);
+ const T=s=>String(s||"").replace(/[^\x20-\x7E]/g,"").trim()||"-",M=v=>"BDT "+Number(v).toLocaleString("en",{minimumFractionDigits:2,maximumFractionDigits:2});
+ const nm=t=>{const c=(t.type==="e"?CE:CI).find(x=>x[0]===t.cat);return T(c?(c[3]||c[0]):t.cat)};
+ const grp=ty=>{const m={},tot=ty==="e"?exp:inc;tx.filter(t=>t.type===ty&&own(t)).forEach(t=>{const k=nm(t);m[k]=(m[k]||0)+t.amt});return Object.entries(m).sort((x,y)=>y[1]-x[1]).map(([k,v])=>[k,M(v),(tot?Math.round(v/tot*100):0)+"%"])};
+ const {jsPDF}=window.jspdf,doc=new jsPDF(),hs={fillColor:[25,160,106]};
+ doc.setFontSize(20);doc.setTextColor(25,160,106);doc.text("Monify Report",14,18);
+ doc.setFontSize(10);doc.setTextColor(90);doc.text(l+"  |  "+(acc==="all"?"All accounts":T(an(acc)))+"  |  Generated "+f(new Date()),14,25);
+ let y=30;
+ const tbl=(title,head,body,opt)=>{if(!body.length)return;if(y>250){doc.addPage();y=14}doc.setFontSize(12);doc.setTextColor(30);doc.text(title,14,y+6);doc.autoTable(Object.assign({startY:y+9,head:[head],body,headStyles:hs,styles:{fontSize:9},margin:{left:14,right:14}},opt||{}));y=doc.lastAutoTable.finalY+8};
+ const rows=[["Income",M(inc)],["Expenses",M(exp)]];
+ if(acc!=="all")rows.push(["Transfers in",M(tin)],["Transfers out",M(tout)]);
+ rows.push(["Net",M(inc+tin-exp-tout)],["Current balance",M(acc==="all"?S.accs.reduce((s,z)=>s+bal(z.id),0):bal(acc))]);
+ tbl("Summary",["Item","Amount"],rows,{columnStyles:{1:{halign:"right"}}});
+ tbl("Expenses by category",["Category","Amount","Share"],grp("e"),{columnStyles:{1:{halign:"right"},2:{halign:"right"}}});
+ tbl("Income by category",["Category","Amount","Share"],grp("i"),{columnStyles:{1:{halign:"right"},2:{halign:"right"}}});
+ tbl("Transactions",["Date","Type","Category","Account","Note","Amount"],tx.map(t=>{const sg=t.type==="e"?"-":t.type==="i"?"+":acc==="all"?"":t.to===acc?"+":"-";return[t.date,{e:"Expense",i:"Income",t:"Transfer"}[t.type],t.type==="t"?"-":nm(t),t.type==="t"?T(an(t.acc))+" > "+T(an(t.to)):T(an(t.acc)),T(t.note),sg+M(t.amt)]}),{columnStyles:{5:{halign:"right"}}});
+ const blob=doc.output("blob"),fn="monify-report-"+per+"-"+ds(new Date())+".pdf";
+ (async()=>{try{const d=await claude.use("downloads");if(d){await d.save({filename:fn,data:blob});return}}catch(e){}doc.save(fn)})();
+}
 function catSettings(){
- open(`<h2>Expense categories</h2><div class="note">Rename a category or change its icon. Tap the icon box and pick an emoji from your keyboard.</div>${CE.map(c=>`<div class="two" style="grid-template-columns:64px 1fr;margin-bottom:8px"><input data-ce="${c[0]}" value="${esc(c[1])}" style="text-align:center;font-size:24px;padding:8px;border-color:${c[2]}"><input data-cn="${c[0]}" value="${esc(c[3]||c[0])}" maxlength="20"></div>`).join("")}
- <button class="go" style="background:var(--g)" id="cs">Save</button><button class="ghost" id="cr">Reset to default</button><button class="ghost" id="cc">Cancel</button>`);
+ open(`<h2>Report &amp; categories</h2><label>PDF report</label><div class="two"><select id="rp"><option value="day" ${V.per==="day"?"selected":""}>Today</option><option value="week" ${V.per==="week"?"selected":""}>This week</option><option value="month" ${V.per==="month"?"selected":""}>This month</option><option value="year">This year</option><option value="all" ${V.per==="all"?"selected":""}>All time</option></select><select id="ra"><option value="all">All accounts</option>${opts(V.acc)}</select></div><button class="go" style="background:#6c8cff;margin-bottom:6px" id="rg">Generate PDF report</button><label style="margin-top:18px">Expense categories</label><div class="note">Rename a category or change its icon. Tap the icon box and pick an emoji from your keyboard.</div>${CE.map(c=>`<div class="two" style="grid-template-columns:64px 1fr;margin-bottom:8px"><input data-ce="${c[0]}" value="${esc(c[1])}" style="text-align:center;font-size:24px;padding:8px;border-color:${c[2]}"><input data-cn="${c[0]}" value="${esc(c[3]||c[0])}" maxlength="20"></div>`).join("")}
+ <button class="go" style="background:var(--g)" id="cs">Save</button><button class="ghost" id="cc">Cancel</button>`);
  $("cs").onclick=()=>{const sg=window.Intl&&Intl.Segmenter?new Intl.Segmenter():null;const first=s=>{s=s.trim();if(!s)return"";if(sg){for(const x of sg.segment(s))return x.segment}return Array.from(s)[0]};
   S.cats=CE0.map(c=>{const e=document.querySelector('[data-ce="'+c[0]+'"]').value,n=document.querySelector('[data-cn="'+c[0]+'"]').value.trim();return{k:c[0],emoji:first(e)||c[1],name:n||c[0]}});applyCats();close();save()};
- $("cr").onclick=()=>{if(confirm("Reset all names and icons to default?")){S.cats=null;applyCats();close();save()}};
+ $("rg").onclick=report;
  $("cc").onclick=close;
 }
 function settings(){
- open(`<h2>Settings</h2><div class="note" id="syn"></div>
+ open(`<h2>Settings</h2>
  <label>Accounts &amp; opening balance</label>
- ${S.accs.map(a=>`<div class="two" style="grid-template-columns:1fr 110px;margin-bottom:6px"><input data-n="${a.id}" value="${esc(a.name)}"><input data-o="${a.id}" inputmode="decimal" value="${a.open||0}"></div>`).join("")}
+ ${S.accs.map(a=>`<div class="two" style="grid-template-columns:1fr 92px 44px;margin-bottom:6px"><input data-n="${a.id}" value="${esc(a.name)}"><input data-o="${a.id}" inputmode="decimal" value="${a.open||0}"><button class="ghost" data-d="${a.id}" aria-label="Delete account" style="margin:0;padding:0;color:var(--r);font-size:18px">🗑</button></div>`).join("")}
  <div class="two" style="grid-template-columns:1fr 110px"><input id="na" placeholder="New account name"><button class="ghost" id="aa" style="margin:0">Add</button></div>
  <button class="go" style="background:var(--g)" id="ss">Save accounts</button>
  <button class="ghost" id="ex">Export backup (JSON)</button><button class="ghost" id="im">Import backup</button>
@@ -176,7 +210,9 @@ function settings(){
  setSyn();
  $("ss").onclick=()=>{document.querySelectorAll("[data-n]").forEach(i=>{const a=S.accs.find(x=>x.id===i.dataset.n);a.name=i.value.trim()||a.name});
   document.querySelectorAll("[data-o]").forEach(i=>{S.accs.find(x=>x.id===i.dataset.o).open=parseFloat(i.value)||0});close();save()};
- $("aa").onclick=()=>{const n=$("na").value.trim();if(!n)return;S.accs.push({id:"a"+Date.now(),name:n,emoji:"👛",open:0});save();settings()};
+ const keep=()=>{document.querySelectorAll("[data-n]").forEach(i=>{const a=S.accs.find(x=>x.id===i.dataset.n);if(a)a.name=i.value.trim()||a.name});document.querySelectorAll("[data-o]").forEach(i=>{const a=S.accs.find(x=>x.id===i.dataset.o);if(a)a.open=parseFloat(i.value)||0})};
+ $("aa").onclick=()=>{const n=$("na").value.trim();if(!n){$("na").focus();return}keep();S.accs.push({id:"a"+Date.now(),name:n,emoji:"👛",open:0});save();settings()};
+ document.querySelectorAll("[data-d]").forEach(b=>b.onclick=()=>{if(S.accs.length<2){alert("You need at least one account.");return}const id=b.dataset.d,n=S.tx.filter(t=>t.acc===id||t.to===id).length;if(!confirm("Delete "+an(id)+(n?" and its "+n+" record(s)":"")+"? This can’t be undone."))return;keep();S.accs=S.accs.filter(x=>x.id!==id);S.tx=S.tx.filter(t=>t.acc!==id&&t.to!==id);if(V.acc===id){V.acc="all";try{localStorage.setItem("swacc","all")}catch(e){}}save();settings()});
  $("cl").onclick=close;
  $("ex").onclick=async()=>{const data=JSON.stringify(S,null,1),fn="monify-backup-"+ds(new Date())+".json";
   try{const d=await claude.use("downloads");if(d){await d.save({filename:fn,data});return}}catch(e){}
