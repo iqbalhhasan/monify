@@ -44,13 +44,14 @@ header{gap:6px}.logo{width:36px;height:36px}.sq{width:36px;height:36px;font-size
 .ci.z i{filter:grayscale(1);opacity:.8}.ci i{font-style:normal}
 .bal{display:flex;justify-content:space-between;align-items:center;background:linear-gradient(90deg,#14a06a,#17b9a0);border-radius:18px;padding:15px 20px;font-weight:800;box-shadow:0 8px 26px rgba(25,195,125,.3)}
 .bal span{font-size:14px;letter-spacing:.3px;opacity:.95}.bal b{font-size:20px}
-.foot{display:grid;grid-template-columns:78px 1fr 78px;align-items:center;margin-top:14px;text-align:center}
+.foot{display:grid;grid-template-columns:78px 1fr 78px;align-items:stretch;margin-top:14px;text-align:center}
+.tm{height:auto;display:flex;align-items:center;justify-content:center}
 .fb{display:flex;flex-direction:column;align-items:center;gap:6px;border:0;background:none;font-size:11px;font-weight:800;letter-spacing:.5px}
 .fb i{width:64px;height:64px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-size:38px;font-weight:300;line-height:1;color:#fff}
 .fb.e i{background:radial-gradient(circle at 35% 30%,#ff6b86,#ee2f55);box-shadow:0 8px 24px rgba(255,69,101,.5)}.fb.e{color:var(--r)}
 .fb.i i{background:radial-gradient(circle at 35% 30%,#2fd89a,#12a86b);box-shadow:0 8px 24px rgba(25,195,125,.5)}.fb.i{color:var(--g)}
 .hint{color:var(--mut);font-size:12px;padding:0 6px}
-.tr{margin-top:8px;border:1px solid var(--line);background:var(--pn);border-radius:999px;padding:6px 14px;font-size:13px;font-weight:700}
+.tr{margin:0;border:1px solid var(--line);background:var(--pn);border-radius:999px;padding:9px 18px;font-size:14px;font-weight:700}
 .shade{position:fixed;inset:0;background:rgba(5,10,20,.65);display:none;align-items:flex-end;justify-content:center;z-index:50}
 .shade.on{display:flex}
 .sheet{background:var(--bg);border:1px solid var(--line);width:100%;max-width:520px;border-radius:26px 26px 0 0;padding:18px 18px calc(18px + env(safe-area-inset-bottom,0px));max-height:90vh;overflow:auto}
@@ -84,21 +85,31 @@ input[type=date]::-webkit-calendar-picker-indicator{opacity:.6}
 .bd{background:var(--g);color:#06251a;border-radius:999px;font-size:11px;font-weight:800;min-width:18px;height:18px;padding:0 5px;display:inline-grid;place-items:center}
 .dot{width:10px;height:10px;border-radius:50%;flex:none;margin:0 6px}.kid{padding:9px 0}
 .stk{position:sticky;top:-18px;z-index:3;background:var(--bg);margin:-18px 0 0;padding:18px 0 6px}
-.hrow{display:flex;align-items:center;justify-content:space-between;gap:10px}.hrow h2{margin:0}
+.hrow{position:relative;justify-content:center}.hrow h2{text-align:center}.hrow .xb{position:absolute;right:0;top:50%;transform:translateY(-50%)}
+.hrow{display:flex;align-items:center;justify-content:center;gap:10px}.hrow h2{margin:0}
 .xb{width:38px;height:38px;border-radius:50%;border:1px solid var(--line);background:var(--pn);color:var(--tx);font-size:16px;flex:none;line-height:1}
+.bal{cursor:pointer;transition:transform .12s}.bal:active{transform:scale(.98)}#rbal{cursor:default}#rbal:active{transform:none}
+.rec{position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;max-width:480px;margin:0 auto;padding-top:calc(env(safe-area-inset-top,0px) + 16px);background:radial-gradient(600px 400px at 50% 0%,#18284a,transparent 70%),var(--bg);transform:translateY(100%);visibility:hidden;will-change:transform;transition:transform .26s cubic-bezier(.3,.8,.3,1),visibility 0s linear .26s}
+.rec.on{transform:none;visibility:visible;transition:transform .3s cubic-bezier(.2,.9,.25,1),visibility 0s}
+.rhd{padding:0 16px}.rsub{text-align:center;color:var(--mut);font-size:12px;letter-spacing:.7px;text-transform:uppercase;font-weight:600;margin:10px 0 0}
+.rbd{flex:1;overflow-y:auto;padding:4px 16px 130px;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+.rec .seg{width:100%;margin:8px 0}.rec .seg button{flex:1;padding:8px;font-size:13px}
+.rft{position:absolute;left:0;right:0;bottom:0;display:flex;justify-content:center;padding:30px 0 calc(env(safe-area-inset-bottom,0px) + 16px);background:linear-gradient(transparent,var(--bg) 55%);pointer-events:none}
+.rx{pointer-events:auto;width:58px;height:58px;border-radius:50%;border:1px solid var(--line);background:var(--pn2);color:var(--tx);font-size:22px;line-height:1;box-shadow:0 8px 24px rgba(0,0,0,.5);transition:transform .12s}.rx:active{transform:scale(.92)}
 </style></head><body>
 <div class="app">
  <header><button class="logo" id="lg" aria-label="Settings" style="cursor:pointer"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7.5A2.5 2.5 0 0 1 6.5 5H18v3"/><path d="M4 7.5V17a2 2 0 0 0 2 2h12.5a1.5 1.5 0 0 0 1.5-1.5v-8A1.5 1.5 0 0 0 18.5 8H6.5A2.5 2.5 0 0 1 4 7.5z"/><circle cx="16" cy="13.5" r="1.2" fill="currentColor"/></svg></button>
   <div class="ti"><b>Monify</b><button id="ac"></button></div>
-  <div class="seg" id="seg"></div><button class="sq" id="bl" aria-label="Records">☰</button><button class="sq" id="bg" aria-label="Category settings">⚙️</button></header>
+  <div class="seg" id="seg"></div><button class="sq" id="bg" aria-label="Category settings">⚙️</button></header>
  <div class="per"><button id="pv">‹</button><span id="lbl"></span><button id="nx">›</button></div>
  <div class="sb"><div class="stage" id="st"><svg viewBox="0 0 200 200" id="dn"></svg><div id="ics"></div>
   <button class="mid" id="mid"></button></div></div>
- <div class="bal"><span>BALANCE</span><b id="bv"></b></div>
+ <div class="bal" id="balbar" role="button" tabindex="0"><span>BALANCE</span><b id="bv"></b></div>
  <div class="foot"><button class="fb e" id="bE"><i>−</i>EXPENSE</button>
-  <div><div class="hint">Tap a category to see its total<br>or use − / +</div><button class="tr" id="bT">⇄ Transfer</button></div>
+  <div class="tm"><button class="tr" id="bT">⇄ Transfer</button></div>
   <button class="fb i" id="bI"><i>+</i>INCOME</button></div>
 </div>
+<div class="rec" id="rec"><div class="rhd"><div class="bal" id="rbal"><span>BALANCE</span><b id="rbv"></b></div><div class="rsub" id="rsub"></div></div><div class="rbd" id="recb"></div><div class="rft"><button class="rx" id="rx" aria-label="Close records">✕</button></div></div>
 <div class="shade" id="sh"><div class="sheet" id="sheet"></div></div>
 <script>
 const CE0=[["Food","🍔","#ff7a1a"],["Transport","🚗","#3b82f6"],["Shopping","🛍️","#ff6eb4"],["Bills","⚡","#f5b800"],["Home","🏠","#8b5cf6"],["Health","❤️","#ff4565"],["Leisure","🎬","#22d3ee"],["Family","🎁","#fb7185"],["Education","🎓","#10b981"],["Other","📦","#94a3b8"]];
@@ -144,7 +155,8 @@ function render(){
  $("dn").innerHTML=svg;
  $("ics").innerHTML=CE.map((c,i)=>{const a=(-90+i*360/CE.length)*Math.PI/180,v=by[c[0]]||0;
   return`<button class="ci ${v?"":"z"} ${V.sel===c[0]?"sel":""} ${Math.sin(a)<-.1?"up":""}" style="left:${50+40*Math.cos(a)}%;top:${50+40*Math.sin(a)}%;--c:${c[2]};width:${CE.length>12?11.5:13.5}%" data-c="${c[0]}"><i>${c[1]}</i><em>${v?Math.round(v/tE*100)+"%":(c[3]||c[0])}</em></button>`}).join("");
- $("bv").textContent=money(V.acc==="all"?S.accs.reduce((s,a)=>s+bal(a.id),0):bal(V.acc));
+ $("bv").textContent=$("rbv").textContent=money(V.acc==="all"?S.accs.reduce((s,a)=>s+bal(a.id),0):bal(V.acc));
+ if($("rec").classList.contains("on"))renderLog();
 }
 const sh=$("sh"),open=h=>{$("sheet").innerHTML=h;sh.classList.add("on")},close=()=>sh.classList.remove("on");
 sh.onclick=e=>{if(e.target===sh)close()};
@@ -168,32 +180,35 @@ function form(type,t,pre){
   if(edit)S.tx=S.tx.map(x=>x.id===t.id?o:x);else S.tx.push(o);close();save()};
  if(edit)$("fx").onclick=()=>{if(confirm("Delete this record?")){S.tx=S.tx.filter(x=>x.id!==t.id);close();save()}};
 }
-let LG=(()=>{try{return localStorage.getItem("swlm")||"cat"}catch(e){return"cat"}})();
-function log(){
- const P=periodTx().sort((a,b)=>b.date.localeCompare(a.date)||b.id-a.id);
+let LG=(()=>{try{return localStorage.getItem("swlm")||"cat"}catch(e){return"cat"}})(),LGO=new Set();
+function renderLog(){
+ const bd=$("recb"),sc=bd.scrollTop,P=periodTx().sort((a,b)=>b.date.localeCompare(a.date)||b.id-a.id);
  const cl=t=>{const c=(t.type==="e"?CE:CI).find(x=>x[0]===t.cat);return t.type==="t"?{n:"Transfer",i:"⇄"}:{n:c?(c[3]||c[0]):t.cat,i:c?c[1]:"📦"}};
  const col=v=>v>0?"inc":v<0?"exp":"",sg=v=>v>0?"+":v<0?"−":"",net=a=>a.reduce((s,t)=>s+sgn(t)*t.amt,0);
  const dot=t=>`<span class="dot" style="background:${sgn(t)>0?"var(--g)":sgn(t)<0?"var(--r)":"var(--mut)"}"></span>`;
  const dl=d=>pd(d).toLocaleDateString("en-GB",{day:"numeric",month:"short"});
  const sub=t=>esc(t.type==="t"?an(t.acc)+" → "+an(t.to):an(t.acc))+(t.note?" · "+esc(t.note):"");
  const kid=(t,main)=>`<div class="row kid" data-t="${t.id}">${dot(t)}<div class="m"><div>${esc(main)}</div><small>${sub(t)}</small></div><b class="${col(sgn(t))}">${money(t.amt)}</b></div>`;
- const amt=(s,ab)=>(s?sg(s):"")+money(s?Math.abs(s):ab);
+ const amt=(s,ab)=>(s?sg(s):"")+money(s?Math.abs(s):ab),gp=k=>`grp${LGO.has(k)?" open":""}" data-g="${k}`;
  let body;
  if(!P.length)body=`<div class="empty">No records for this period.</div>`;
  else if(LG==="cat"){
   const m={},ord={i:0,e:1,t:2};P.forEach(t=>{const k=t.type+":"+(t.type==="t"?"t":t.cat);(m[k]=m[k]||[]).push(t)});
-  body=Object.values(m).map(a=>({a,s:net(a),ab:a.reduce((s,t)=>s+t.amt,0),o:ord[a[0].type]})).sort((x,y)=>x.o-y.o||y.ab-x.ab).map(g=>{const c=cl(g.a[0]);
-   return`<div class="grp"><div class="gh"><span class="chev">›</span><div class="ic">${c.i}</div><div class="gn">${esc(c.n)}<span class="bd">${g.a.length}</span></div><b class="${col(g.s)}">${amt(g.s,g.ab)}</b></div><div class="kids">${g.a.map(t=>kid(t,dl(t.date))).join("")}</div></div>`}).join("");
+  body=Object.values(m).map(a=>({a,s:net(a),ab:a.reduce((s,t)=>s+t.amt,0),o:ord[a[0].type]})).sort((x,y)=>x.o-y.o||y.ab-x.ab).map(g=>{const c=cl(g.a[0]),k="c"+g.a[0].type+(g.a[0].type==="t"?"t":g.a[0].cat);
+   return`<div class="${gp(k)}"><div class="gh"><span class="chev">›</span><div class="ic">${c.i}</div><div class="gn">${esc(c.n)}<span class="bd">${g.a.length}</span></div><b class="${col(g.s)}">${amt(g.s,g.ab)}</b></div><div class="kids">${g.a.map(t=>kid(t,dl(t.date))).join("")}</div></div>`}).join("");
  }else{
   const days={};P.forEach(t=>(days[t.date]=days[t.date]||[]).push(t));
   body=Object.keys(days).sort().reverse().map(d=>{const a=days[d],s=net(a);
-   return`<div class="grp"><div class="gh"><span class="chev">›</span><div class="gn">${pd(d).toLocaleDateString("en-GB",{day:"numeric",month:"long"})}<span class="bd">${a.length}</span></div><b class="${col(s)}">${amt(s,0)}</b></div><div class="kids">${a.map(t=>kid(t,cl(t).n)).join("")}</div></div>`}).join("");
+   return`<div class="${gp("d"+d)}"><div class="gh"><span class="chev">›</span><div class="gn">${pd(d).toLocaleDateString("en-GB",{day:"numeric",month:"long"})}<span class="bd">${a.length}</span></div><b class="${col(s)}">${amt(s,0)}</b></div><div class="kids">${a.map(t=>kid(t,cl(t).n)).join("")}</div></div>`}).join("");
  }
- open(`<div class="stk"><div class="hrow"><h2>Records · ${esc(range().l)}</h2><button class="xb" id="lx" aria-label="Close">✕</button></div><div class="seg"><button data-lm="cat" class="${LG==="cat"?"on":""}">By category</button><button data-lm="date" class="${LG==="date"?"on":""}">By date</button></div></div>`+body);
- $("lx").onclick=close;
- document.querySelectorAll(".gh").forEach(h=>h.onclick=()=>h.parentElement.classList.toggle("open"));
- document.querySelectorAll("[data-lm]").forEach(b=>b.onclick=()=>{LG=b.dataset.lm;try{localStorage.setItem("swlm",LG)}catch(e){}log()});
+ bd.innerHTML=`<div class="seg"><button data-lm="cat" class="${LG==="cat"?"on":""}">By category</button><button data-lm="date" class="${LG==="date"?"on":""}">By date</button></div>`+body;
+ $("rsub").textContent=range().l+" · "+(V.acc==="all"?"All accounts":an(V.acc));
+ bd.querySelectorAll(".gh").forEach(h=>h.onclick=()=>{const p=h.parentElement,o=p.classList.toggle("open");o?LGO.add(p.dataset.g):LGO.delete(p.dataset.g)});
+ bd.querySelectorAll("[data-lm]").forEach(b=>b.onclick=()=>{LG=b.dataset.lm;try{localStorage.setItem("swlm",LG)}catch(e){}renderLog()});
+ bd.scrollTop=sc;
 }
+function log(){renderLog();$("recb").scrollTop=0;$("rec").getBoundingClientRect();$("rec").classList.add("on")}
+const unlog=()=>$("rec").classList.remove("on");
 function picker(){
  open(`<h2>Account</h2><button class="pk ${V.acc==="all"?"on":""}" data-a="all"><span>🧾 All accounts</span><b>${money(S.accs.reduce((s,a)=>s+bal(a.id),0))}</b></button>`+S.accs.map(a=>`<button class="pk ${V.acc===a.id?"on":""}" data-a="${a.id}"><span>${esc(a.emoji||"")} ${esc(a.name)}</span><b>${money(bal(a.id))}</b></button>`).join(""));
 }
@@ -247,7 +262,7 @@ function report(){
 function catSettings(){
  const cus=k=>(S.custom||[]).some(x=>x.k===k);
  const rowsH=CE.map(c=>{const cu=cus(c[0]);return`<div class="two" style="grid-template-columns:64px 1fr${cu?" 44px":""};margin-bottom:8px"><input data-ce="${c[0]}" value="${esc(c[1])}" style="text-align:center;font-size:24px;padding:8px;border-color:${c[2]}"><input data-cn="${c[0]}" value="${esc(c[3]||c[0])}" maxlength="20">${cu?`<button class="ghost" data-dc="${c[0]}" aria-label="Delete category" style="margin:0;padding:0;color:var(--r);font-size:18px">🗑</button>`:""}</div>`}).join("");
- open(`<div class="stk"><div class="hrow"><h2>Report &amp; categories</h2><button class="xb" id="cx" aria-label="Close">✕</button></div></div><label>PDF report</label><div class="two"><select id="rp"><option value="day" ${V.per==="day"?"selected":""}>Today</option><option value="week" ${V.per==="week"?"selected":""}>This week</option><option value="month" ${V.per==="month"?"selected":""}>This month</option><option value="year">This year</option><option value="all" ${V.per==="all"?"selected":""}>All time</option></select><select id="ra"><option value="all">All accounts</option>${opts(V.acc)}</select></div><button class="go" style="background:#6c8cff;margin-bottom:6px" id="rg">Generate PDF report</button><label style="margin-top:18px">Expense categories</label><div class="note">Rename a category or change its icon. Tap the icon box and pick an emoji from your keyboard.</div>${rowsH}
+ open(`<div class="stk"><div class="hrow"><h2>Report &amp; Categories</h2><button class="xb" id="cx" aria-label="Close">✕</button></div></div><label>PDF report</label><div class="two"><select id="rp"><option value="day" ${V.per==="day"?"selected":""}>Today</option><option value="week" ${V.per==="week"?"selected":""}>This week</option><option value="month" ${V.per==="month"?"selected":""}>This month</option><option value="year">This year</option><option value="all" ${V.per==="all"?"selected":""}>All time</option></select><select id="ra"><option value="all">All accounts</option>${opts(V.acc)}</select></div><button class="go" style="background:#6c8cff;margin-bottom:6px" id="rg">Generate PDF report</button><label style="margin-top:18px">Expense categories</label><div class="note">Rename a category or change its icon. Tap the icon box and pick an emoji from your keyboard.</div>${rowsH}
  <label style="margin-top:14px">Add new category</label><div class="two" style="grid-template-columns:64px 1fr 76px"><input id="nce" placeholder="🏷️" style="text-align:center;font-size:24px;padding:8px"><input id="ncn" placeholder="New category name" maxlength="20"><button class="ghost" id="nca" style="margin:0">Add</button></div>
  <button class="go" style="background:var(--g)" id="cs">Save</button><button class="ghost" id="cc">Cancel</button>`);
  const sg=window.Intl&&Intl.Segmenter?new Intl.Segmenter():null;
@@ -303,7 +318,7 @@ document.addEventListener("pointerdown",e=>{const b=e.target.closest(".ci");if(!
 document.addEventListener("contextmenu",e=>{if(e.target.closest(".ci"))e.preventDefault()});
 $("pv").onclick=()=>{V.off--;render()};$("nx").onclick=()=>{V.off++;render()};
 $("bE").onclick=()=>form("e");$("bI").onclick=()=>form("i");$("bT").onclick=()=>form("t");
-$("mid").onclick=()=>{if(held)return;log()};$("bl").onclick=log;$("ac").onclick=picker;$("lg").onclick=settings;$("bg").onclick=catSettings;
+$("mid").onclick=()=>{if(held)return;log()};$("balbar").onclick=log;$("rx").onclick=unlog;$("ac").onclick=picker;$("lg").onclick=settings;$("bg").onclick=catSettings;
 render();
 (async()=>{try{if(!window.claude)return;const u=await claude.use("user"),db=await claude.use("db");if(!u||!db)return;
  const id=await u.id();if(!id)return;const r=db.collection("data/users/"+id).doc("state");const s=await r.get();
