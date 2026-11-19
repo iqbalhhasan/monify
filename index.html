@@ -258,7 +258,7 @@ function report(){
   didParseCell:h=>{if(h.section==="body"&&h.column.index===5){const s=String(h.cell.raw)[0];h.cell.styles.textColor=s==="+"?G:s==="-"?RD:DK}}});
  const pc=doc.getNumberOfPages();for(let i=1;i<=pc;i++){doc.setPage(i);doc.setFont("helvetica","normal");doc.setFontSize(7.5);doc.setTextColor(...MU);doc.text("Monify  |  "+T(l),mx,291);doc.text("Page "+i+" of "+pc,R,291,{align:"right"})}
  const blob=doc.output("blob"),fn="monify-report-"+per+"-"+ds(new Date())+".pdf";
- (async()=>{try{const d=await claude.use("downloads");if(d){await d.save({filename:fn,data:blob});return}}catch(e){}doc.save(fn)})();
+ saveOut(blob,fn,"application/pdf").then(ok=>{if(!ok)window.open(URL.createObjectURL(blob),"_blank")});
 }
 function catSettings(){
  const cus=k=>(S.custom||[]).some(x=>x.k===k);
@@ -280,6 +280,24 @@ function catSettings(){
   gather();S.custom=S.custom.filter(x=>x.k!==k);S.tx.forEach(t=>{if(t.type==="e"&&t.cat===k)t.cat="Other"});applyCats();save();catSettings()});
  $("rg").onclick=report;$("cc").onclick=close;$("cx").onclick=close;
 }
+async function saveOut(data,fn,type){
+ try{const d=window.claude&&await claude.use("downloads");if(d){await d.save({filename:fn,data});return true}}catch(e){}
+ const file=new File([data],fn,{type});
+ try{if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:fn});return true}}catch(e){if(e&&e.name==="AbortError")return true}
+ const sa=navigator.standalone||(window.matchMedia&&matchMedia("(display-mode: standalone)").matches);
+ if(!sa){try{const u=URL.createObjectURL(file),a=document.createElement("a");a.href=u;a.download=fn;document.body.appendChild(a);a.click();setTimeout(()=>{a.remove();URL.revokeObjectURL(u)},5000);return true}catch(e){}}
+ return false}
+function backupText(data){
+ open(`<div class="stk"><div class="hrow l"><h2>Backup</h2><button class="xb" id="bx" aria-label="Close">✕</button></div></div><div class="note">This device can’t save files directly from here. Tap Copy, then paste the text into Notes or Files to keep it.</div>
+ <textarea id="bt" readonly style="width:100%;height:130px;background:var(--pn);color:var(--tx);border:1px solid var(--line);border-radius:12px;padding:10px;font:12px/1.4 monospace"></textarea>
+ <button class="go" style="background:var(--g)" id="bc">Copy backup</button>
+ <label style="margin-top:18px">Restore from backup text</label>
+ <textarea id="rt" placeholder="Paste backup text here" style="width:100%;height:90px;background:var(--pn);color:var(--tx);border:1px solid var(--line);border-radius:12px;padding:10px;font:12px/1.4 monospace"></textarea>
+ <button class="ghost" id="rr">Restore</button>`);
+ $("bt").value=data;$("bx").onclick=close;
+ $("bc").onclick=async()=>{try{await navigator.clipboard.writeText(data)}catch(e){$("bt").select();try{document.execCommand("copy")}catch(e2){}}$("bc").textContent="Copied ✓"};
+ $("rr").onclick=()=>{try{const j=JSON.parse($("rt").value);if(j.accs&&j.tx){S=j;applyCats();close();save()}else alert("That doesn’t look like a valid backup.")}catch(e){alert("That doesn’t look like a valid backup.")}};
+}
 function settings(){
  open(`<div class="stk"><div class="hrow"><h2>Settings</h2><button class="xb" id="sx" aria-label="Close">✕</button></div></div>
  <label>Accounts &amp; opening balance</label>
@@ -295,9 +313,7 @@ function settings(){
  $("aa").onclick=()=>{const n=$("na").value.trim();if(!n){$("na").focus();return}keep();S.accs.push({id:"a"+Date.now(),name:n,emoji:"👛",open:0});save();settings()};
  document.querySelectorAll("[data-d]").forEach(b=>b.onclick=()=>{if(S.accs.length<2){alert("You need at least one account.");return}const id=b.dataset.d,n=S.tx.filter(t=>t.acc===id||t.to===id).length;if(!confirm("Delete "+an(id)+(n?" and its "+n+" record(s)":"")+"? This can’t be undone."))return;keep();S.accs=S.accs.filter(x=>x.id!==id);S.tx=S.tx.filter(t=>t.acc!==id&&t.to!==id);if(V.acc===id){V.acc="all";try{localStorage.setItem("swacc","all")}catch(e){}}save();settings()});
  $("cl").onclick=close;$("sx").onclick=close;
- $("ex").onclick=async()=>{const data=JSON.stringify(S,null,1),fn="monify-backup-"+ds(new Date())+".json";
-  try{const d=await claude.use("downloads");if(d){await d.save({filename:fn,data});return}}catch(e){}
-  const a=document.createElement("a");a.href="data:application/json,"+encodeURIComponent(data);a.download=fn;a.click()};
+ $("ex").onclick=async()=>{const data=JSON.stringify(S,null,1),fn="monify-backup-"+ds(new Date())+".json";if(!await saveOut(data,fn,"application/json"))backupText(data)};
  $("im").onclick=()=>$("fi").click();
  $("fi").onchange=e=>{const f=e.target.files[0];if(!f)return;f.text().then(x=>{const j=JSON.parse(x);if(j.accs&&j.tx){S=j;applyCats();close();save()}else alert("Not a valid backup.")}).catch(()=>alert("Could not read file."))};
 }
