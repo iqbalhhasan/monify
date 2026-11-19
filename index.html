@@ -87,6 +87,7 @@ input[type=date]::-webkit-calendar-picker-indicator{opacity:.6}
 .stk{position:sticky;top:-18px;z-index:3;background:var(--bg);margin:-18px 0 0;padding:18px 0 6px}
 .hrow{position:relative;justify-content:center}.hrow h2{text-align:center}.hrow .xb{position:absolute;right:0;top:50%;transform:translateY(-50%)}
 .hrow{display:flex;align-items:center;justify-content:center;gap:10px}.hrow h2{margin:0}
+.hrow.l{justify-content:flex-start}.hrow.l h2{text-align:left}
 .xb{width:38px;height:38px;border-radius:50%;border:1px solid var(--line);background:var(--pn);color:var(--tx);font-size:16px;flex:none;line-height:1}
 .bal{cursor:pointer;transition:transform .12s}.bal:active{transform:scale(.98)}#rbal{cursor:default}#rbal:active{transform:none}
 .rec{position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;max-width:480px;margin:0 auto;padding-top:calc(env(safe-area-inset-top,0px) + 16px);background:radial-gradient(600px 400px at 50% 0%,#18284a,transparent 70%),var(--bg);transform:translateY(100%);visibility:hidden;will-change:transform;transition:transform .26s cubic-bezier(.3,.8,.3,1),visibility 0s linear .26s}
@@ -164,14 +165,14 @@ const opts=sel=>S.accs.map(a=>`<option value="${a.id}" ${a.id===sel?"selected":"
 function form(type,t,pre){
  const edit=!!t,cats=type==="e"?CE:CI,col=type==="e"?"var(--r)":type==="i"?"var(--g)":"#6c8cff";
  const sel=t?.cat||pre||cats[0][0],a0=t?.acc||(V.acc!=="all"?V.acc:S.accs[0].id),a1=t?.to||(S.accs.find(a=>a.id!==a0)||{}).id;
- open(`<h2>${edit?"Edit ":"New "}${{e:"expense",i:"income",t:"transfer"}[type]}</h2>
+ open(`<div class="stk"><div class="hrow l"><h2>${edit?"Edit ":"New "}${{e:"Expense",i:"Income",t:"Transfer"}[type]}</h2><button class="xb" id="fxx" aria-label="Close">✕</button></div></div>
  <input class="amt" id="fa" inputmode="decimal" placeholder="${CUR}0" value="${t?t.amt:""}" style="color:${col}">
  ${type!=="t"?`<div class="grid">${cats.map(c=>`<button class="cat ${c[0]===sel?"on":""}" style="--c:${c[2]}" data-k="${c[0]}"><span>${c[1]}</span>${esc(c[3]||c[0])}</button>`).join("")}</div><label>Account</label><select id="fc">${opts(a0)}</select>`
  :`<div class="two"><div><label>From</label><select id="fc">${opts(a0)}</select></div><div><label>To</label><select id="fd">${opts(a1)}</select></div></div>`}
  <label>Date</label><input type="date" id="fdt" value="${t?.date||ds(new Date())}">
  ${type!=="t"?`<label>Note (optional)</label><input id="fn" value="${esc(t?.note||"")}" placeholder="e.g. Lunch with friends">`:""}
  <button class="go" style="background:${col}" id="fs">Save</button>${edit?`<button class="ghost" id="fx" style="color:var(--r)">Delete record</button>`:""}`);
- let cat=sel;
+ let cat=sel;$("fxx").onclick=close;
  document.querySelectorAll(".cat").forEach(b=>b.onclick=()=>{cat=b.dataset.k;document.querySelectorAll(".cat").forEach(x=>x.classList.toggle("on",x===b))});
  if(!edit)setTimeout(()=>$("fa").focus(),150);
  $("fs").onclick=()=>{const amt=parseFloat($("fa").value);if(!(amt>0)){$("fa").focus();return}
