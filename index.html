@@ -5,6 +5,7 @@
 <title>Monify</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
 :root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:dark;
 --bg:#101a2e;--pn:#182540;--pn2:#1f2e4c;--line:#2a3a5a;--tx:#f1f5fb;--mut:#8d9ab3;--g:#19c37d;--r:#ff4565}
@@ -86,6 +87,10 @@ input[type=date]::-webkit-calendar-picker-indicator{opacity:.6}
 .stk{position:sticky;top:-18px;z-index:3;background:var(--bg);margin:-18px 0 0;padding:18px 0 6px}
 .hrow{display:flex;align-items:center;justify-content:space-between;gap:10px}.hrow h2{margin:0}
 .xb{width:38px;height:38px;border-radius:50%;border:1px solid var(--line);background:var(--pn);color:var(--tx);font-size:16px;flex:none;line-height:1}
+.gcard{background:var(--pn);border:1px solid var(--line);border-radius:16px;padding:12px;margin:2px 0 8px}
+.gbtn{width:100%;display:flex;align-items:center;justify-content:center;gap:10px;background:#fff;color:#1f1f1f;border:0;border-radius:12px;padding:12px;font-weight:700;font-size:15px}
+.gu{display:flex;align-items:center;gap:10px}.gu img,.ga{width:38px;height:38px;border-radius:50%;flex:none}.ga{background:var(--g);display:grid;place-items:center;font-weight:800}
+.gu b{display:block}.gu small{display:block;color:var(--mut)}
 </style></head><body>
 <div class="app">
  <header><button class="logo" id="lg" aria-label="Settings" style="cursor:pointer"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7.5A2.5 2.5 0 0 1 6.5 5H18v3"/><path d="M4 7.5V17a2 2 0 0 0 2 2h12.5a1.5 1.5 0 0 0 1.5-1.5v-8A1.5 1.5 0 0 0 18.5 8H6.5A2.5 2.5 0 0 1 4 7.5z"/><circle cx="16" cy="13.5" r="1.2" fill="currentColor"/></svg></button>
@@ -115,7 +120,7 @@ let S=def(),V={acc:"all",per:"month",off:0},ref=null;
 try{const x=localStorage.getItem("sw");if(x)S=JSON.parse(x)}catch(e){}
 try{const a=localStorage.getItem("swacc");if(a&&S.accs.some(z=>z.id===a))V.acc=a}catch(e){}
 applyCats();
-function save(){S.t=Date.now();try{localStorage.setItem("sw",JSON.stringify(S))}catch(e){}
+function save(){S.t=Date.now();try{localStorage.setItem("sw",JSON.stringify(S))}catch(e){}gQueue();
  if(ref)ref.set({json:JSON.stringify(S),t:S.t}).catch(()=>{});render()}
 function range(){const n=new Date();n.setHours(0,0,0,0);let a,b,l;
  if(V.per==="day"){a=new Date(n);a.setDate(a.getDate()+V.off);b=a;l=V.off===0?"Today":a.toLocaleDateString("en",{day:"numeric",month:"short",year:"numeric"})}
@@ -266,7 +271,7 @@ function catSettings(){
 }
 function settings(){
  open(`<div class="stk"><div class="hrow"><h2>Settings</h2><button class="xb" id="sx" aria-label="Close">✕</button></div></div>
- <label>Accounts &amp; opening balance</label>
+ <div id="gbox"></div><label>Accounts &amp; opening balance</label>
  ${S.accs.map(a=>`<div class="two" style="grid-template-columns:1fr 92px 44px;margin-bottom:6px"><input data-n="${a.id}" value="${esc(a.name)}"><input data-o="${a.id}" inputmode="decimal" value="${a.open||0}"><button class="ghost" data-d="${a.id}" aria-label="Delete account" style="margin:0;padding:0;color:var(--r);font-size:18px">🗑</button></div>`).join("")}
  <div class="two" style="grid-template-columns:1fr 110px"><input id="na" placeholder="New account name"><button class="ghost" id="aa" style="margin:0">Add</button></div>
  <button class="go" style="background:var(--g)" id="ss">Save accounts</button>
@@ -278,7 +283,7 @@ function settings(){
  const keep=()=>{document.querySelectorAll("[data-n]").forEach(i=>{const a=S.accs.find(x=>x.id===i.dataset.n);if(a)a.name=i.value.trim()||a.name});document.querySelectorAll("[data-o]").forEach(i=>{const a=S.accs.find(x=>x.id===i.dataset.o);if(a)a.open=parseFloat(i.value)||0})};
  $("aa").onclick=()=>{const n=$("na").value.trim();if(!n){$("na").focus();return}keep();S.accs.push({id:"a"+Date.now(),name:n,emoji:"👛",open:0});save();settings()};
  document.querySelectorAll("[data-d]").forEach(b=>b.onclick=()=>{if(S.accs.length<2){alert("You need at least one account.");return}const id=b.dataset.d,n=S.tx.filter(t=>t.acc===id||t.to===id).length;if(!confirm("Delete "+an(id)+(n?" and its "+n+" record(s)":"")+"? This can’t be undone."))return;keep();S.accs=S.accs.filter(x=>x.id!==id);S.tx=S.tx.filter(t=>t.acc!==id&&t.to!==id);if(V.acc===id){V.acc="all";try{localStorage.setItem("swacc","all")}catch(e){}}save();settings()});
- $("cl").onclick=close;$("sx").onclick=close;
+ $("cl").onclick=close;$("sx").onclick=close;gUI();
  $("ex").onclick=async()=>{const data=JSON.stringify(S,null,1),fn="monify-backup-"+ds(new Date())+".json";
   try{const d=await claude.use("downloads");if(d){await d.save({filename:fn,data});return}}catch(e){}
   const a=document.createElement("a");a.href="data:application/json,"+encodeURIComponent(data);a.download=fn;a.click()};
@@ -291,6 +296,50 @@ document.addEventListener("click",e=>{const g=s=>e.target.closest(s);let x;
  else if(x=g(".ci")){if(held)return;form("e",null,x.dataset.c)}
  else if(x=g("[data-a]")){V.acc=x.dataset.a;try{localStorage.setItem("swacc",V.acc)}catch(e){}close();render()}
  else if(x=g("[data-t]")){const t=S.tx.find(y=>String(y.id)===x.dataset.t);if(t)form(t.type,t)}});
+/* ===== Google sign-in + Drive sync (data lives in your own Google Drive app-data folder) ===== */
+const GID="PASTE_YOUR_CLIENT_ID_HERE.apps.googleusercontent.com",GSCOPE="https://www.googleapis.com/auth/drive.appdata openid email profile";
+let GT=null,GU=null,GEXP=0,gtc=null,gfid=null,gbusy=false,gst="",gT2=null,gTried=false;
+try{const x=JSON.parse(localStorage.getItem("swg")||"null");if(x){GU=x.u;if(x.exp>Date.now()){GT=x.tok;GEXP=x.exp}}}catch(e){}
+const gok=()=>!!GT&&Date.now()<GEXP,gt=()=>new Date().toLocaleTimeString("en",{hour:"numeric",minute:"2-digit"});
+const gsave=()=>{try{localStorage.setItem("swg",JSON.stringify({u:GU,tok:GT,exp:GEXP}))}catch(e){}};
+function gInit(){if(gtc)return true;if(!window.google||!google.accounts)return false;
+ gtc=google.accounts.oauth2.initTokenClient({client_id:GID,scope:GSCOPE,
+  callback:async r=>{if(r.error){gst="Sign-in failed.";gUI();return}
+   GT=r.access_token;GEXP=Date.now()+(Number(r.expires_in||3600)-90)*1000;
+   try{const u=await(await fetch("https://www.googleapis.com/oauth2/v3/userinfo",{headers:{Authorization:"Bearer "+GT}})).json();GU={email:u.email,name:u.name,pic:u.picture}}catch(e){}
+   gsave();await gSync();gUI()},
+  error_callback:()=>{gst="Sign-in cancelled.";gUI()}});return true}
+function gSignIn(){if(GID.indexOf("PASTE")===0){alert("Add your Google Client ID to the file first (see the setup steps).");return}
+ if(!gInit()){alert("Google sign-in is still loading. Try again in a moment.");return}
+ gtc.requestAccessToken({prompt:GU?"":"consent"})}
+async function gapi(url,opt){opt=opt||{};opt.headers=Object.assign({Authorization:"Bearer "+GT},opt.headers||{});
+ const r=await fetch(url,opt);if(r.status===401){GT=null;GEXP=0;gst="Session ended. Tap Reconnect.";throw new Error("401")}
+ if(!r.ok)throw new Error("HTTP "+r.status);return r}
+async function gFind(){const j=await(await gapi("https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q="+encodeURIComponent("name='monify-data.json'")+"&fields=files(id)")).json();return j.files&&j.files[0]?j.files[0].id:null}
+async function gPush(){const body=JSON.stringify(S);if(!gfid)gfid=await gFind();
+ if(gfid){await gapi("https://www.googleapis.com/upload/drive/v3/files/"+gfid+"?uploadType=media",{method:"PATCH",headers:{"Content-Type":"application/json"},body})}
+ else{const bd="mnf"+Date.now(),mp="--"+bd+"\r\nContent-Type: application/json\r\n\r\n"+JSON.stringify({name:"monify-data.json",parents:["appDataFolder"]})+"\r\n--"+bd+"\r\nContent-Type: application/json\r\n\r\n"+body+"\r\n--"+bd+"--";
+  const j=await(await gapi("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id",{method:"POST",headers:{"Content-Type":"multipart/related; boundary="+bd},body:mp})).json();gfid=j.id}}
+async function gSync(){if(!gok()||gbusy)return;gbusy=true;gst="Syncing…";gUI();
+ try{gfid=await gFind();
+  if(gfid){const r=await(await gapi("https://www.googleapis.com/drive/v3/files/"+gfid+"?alt=media")).json();
+   if(r&&r.accs&&r.tx&&(r.t||0)>(S.t||0)){S=r;if(V.acc!=="all"&&!S.accs.some(a=>a.id===V.acc))V.acc="all";applyCats();try{localStorage.setItem("sw",JSON.stringify(S))}catch(e){}render()}
+   else if((S.t||0)>((r&&r.t)||0))await gPush()}
+  else await gPush();
+  gst="Synced "+gt()}catch(e){if(!/^Session/.test(gst))gst="Sync failed. Check your connection."}
+ gbusy=false;gUI()}
+function gQueue(){if(!gok())return;clearTimeout(gT2);
+ gT2=setTimeout(async function run(){if(gbusy){gT2=setTimeout(run,800);return}gbusy=true;gst="Syncing…";gUI();
+  try{await gPush();gst="Synced "+gt()}catch(e){if(!/^Session/.test(gst))gst="Sync failed. Check your connection."}gbusy=false;gUI()},1200)}
+function gOut(){try{if(GT&&window.google)google.accounts.oauth2.revoke(GT,()=>{})}catch(e){}GT=null;GU=null;GEXP=0;gfid=null;gst="";try{localStorage.removeItem("swg")}catch(e){}gUI()}
+const GLOGO='<svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4.1 7.1-10.1 7.1-17.5z"/><path fill="#FBBC05" d="M10.5 28.7A14.5 14.5 0 0 1 9.5 24c0-1.6.3-3.2.8-4.7l-7.9-6.1A24 24 0 0 0 0 24c0 3.9.9 7.5 2.6 10.8l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.5-5.8c-2.1 1.4-4.9 2.3-8.4 2.3-6.3 0-11.6-4.1-13.5-9.9l-7.9 6.1C6.5 42.6 14.6 48 24 48z"/></svg>';
+function gUI(){const b=$("gbox");if(!b)return;
+ if(GU){b.innerHTML=`<div class="gcard"><div class="gu">${GU.pic?`<img src="${esc(GU.pic)}" referrerpolicy="no-referrer" alt="">`:`<span class="ga">G</span>`}<div><b>${esc(GU.name||"Google account")}</b><small>${esc(GU.email||"")}</small></div></div><div class="note" style="margin:8px 0 0">${gok()?esc(gst||"Connected"):"Session ended. Reconnect to keep syncing."}</div><div class="two" style="margin-top:8px"><button class="ghost" id="gs" style="margin:0">${gok()?"Sync now":"Reconnect"}</button><button class="ghost" id="gx" style="margin:0">Sign out</button></div></div>`;
+  $("gs").onclick=()=>gok()?gSync():gSignIn();$("gx").onclick=()=>{if(confirm("Sign out of Google sync? Your data stays on this device."))gOut()}}
+ else{b.innerHTML=`<div class="gcard"><button class="gbtn" id="gl">${GLOGO} Sign in with Google</button><div class="note" style="margin:8px 0 0">Sync your data across all your devices using your Google account.${gst?" "+esc(gst):""}</div></div>`;$("gl").onclick=gSignIn}}
+document.addEventListener("visibilitychange",()=>{if(!document.hidden&&gok())gSync()});
+document.addEventListener("pointerdown",()=>{if(GU&&!gok()&&!gTried&&gInit()){gTried=true;try{gtc.requestAccessToken({prompt:""})}catch(e){}}});
+
 let BY={},TE=0,held=false,ht=null;
 const endHold=()=>{clearTimeout(ht);ht=null;if(held){$("mid").style.background="";render();setTimeout(()=>{held=false},350)}};
 document.addEventListener("pointerdown",e=>{const b=e.target.closest(".ci");if(!b||b.classList.contains("z"))return;
@@ -304,7 +353,7 @@ document.addEventListener("contextmenu",e=>{if(e.target.closest(".ci"))e.prevent
 $("pv").onclick=()=>{V.off--;render()};$("nx").onclick=()=>{V.off++;render()};
 $("bE").onclick=()=>form("e");$("bI").onclick=()=>form("i");$("bT").onclick=()=>form("t");
 $("mid").onclick=()=>{if(held)return;log()};$("bl").onclick=log;$("ac").onclick=picker;$("lg").onclick=settings;$("bg").onclick=catSettings;
-render();
+render();if(gok())gSync();
 (async()=>{try{if(!window.claude)return;const u=await claude.use("user"),db=await claude.use("db");if(!u||!db)return;
  const id=await u.id();if(!id)return;const r=db.collection("data/users/"+id).doc("state");const s=await r.get();
  if(s.exists){const d=s.data();if(d.t>(S.t||0)){S=JSON.parse(d.json);applyCats();try{localStorage.setItem("sw",d.json)}catch(e){}}else await r.set({json:JSON.stringify(S),t:S.t})}
